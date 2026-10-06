@@ -509,21 +509,71 @@ npm run build
 
 ## 11. Security, Role-Based Access Control & Auditability
 
-```
-+---------------+---------------------+---------------------------------------------------------------+
-| ROLE          | DEFAULT CREDENTIALS | SYSTEM PRIVILEGES                                             |
-+---------------+---------------------+---------------------------------------------------------------+
-| Administrator | admin / admin123    | Full system control, user provisioning, database maintenance, |
-|               |                     | emergency resets, hardware gateway configuration.             |
-+---------------+---------------------+---------------------------------------------------------------+
-| Engineer      | engineer / engineer123| ML model training & activation, threshold tuning,             |
-|               |                     | vibration feature inspection, safety interlock resets.        |
-+---------------+---------------------+---------------------------------------------------------------+
-| Operator      | operator / operator123| Live telemetry view, physical emergency stop actuation,      |
-|               |                     | explicit tool reset, siren mute toggle.                       |
-+---------------+---------------------+---------------------------------------------------------------+
-| Viewer        | viewer / viewer123  | Read-only telemetry access, report viewing, export downloads. |
-+---------------+---------------------+---------------------------------------------------------------+
+The platform implements an enterprise **Role-Based Access Control (RBAC)** model, bcrypt password hashing, JWT bearer authorization, and an immutable audit ledger meeting automotive regulatory compliance standards (**IATF 16949:2016** and **ISO 9001:2015**).
+
+For the full dedicated specification, see [SECURITY_AND_AUDITABILITY.md](SECURITY_AND_AUDITABILITY.md).
+
+### 11.1 Default Factory Accounts
+
+| Role | Username | Default Password | Description & Scope |
+| :--- | :--- | :--- | :--- |
+| **Administrator** | `admin` | `admin123` | Plant technical superintendent. Full root permissions over user accounts, physical gateways, database retention, and station topology. |
+| **Engineer** | `engineer` | `engineer123` | Manufacturing quality & AI reliability engineer. Trains ML models, tunes vibration thresholds, and performs tool interlock resets. |
+| **Operator** | `operator` | `operator123` | Assembly line cell technician. Monitors active spindles, triggers physical emergency stops, executes explicit resets, and controls plant siren mute. |
+| **Viewer** | `viewer` | `viewer123` | Production auditor / plant executive. Read-only live telemetry, historical shift reports, and audit ledger downloads. |
+
+### 11.2 Granular Permissions Matrix
+
+| Functional Capability | Viewer | Operator | Engineer | Administrator | Enforcing Endpoint / Guard |
+| :--- | :---: | :---: | :---: | :---: | :--- |
+| **View Live Telemetry & FFT Spectrum** | Yes | Yes | Yes | Yes | `GET /api/readings/latest`, `GET /api/vibration/live` |
+| **View Historical Reports & CSV Exports** | Yes | Yes | Yes | Yes | `GET /api/history/features`, `GET /api/history/export` |
+| **Actuate Siren Alert Mute Toggle** | No | Yes | Yes | Yes | Client Web Audio API Guard |
+| **Actuate Emergency Stop (0 RPM Lockout)** | No | Yes | Yes | Yes | `POST /api/stations/{id}/emergency-stop` |
+| **Execute Mandatory Tool Safety Reset** | No | Yes | Yes | Yes | `POST /api/stations/{id}/reset` |
+| **Record & Export Dataset Sessions** | No | No | Yes | Yes | `POST /api/recordings/start`, `POST /api/recordings/stop` |
+| **Train New AI ML Models (Isolation Forest)** | No | No | Yes | Yes | `POST /api/models/train` |
+| **Hot-Activate Model Checkpoint** | No | No | Yes | Yes | `POST /api/models/{version}/activate` |
+| **Tune Warn & Critical Safety Thresholds** | No | No | Yes | Yes | `PUT /api/models/{version}/thresholds` |
+| **Direct Database Record Editing / Insert** | No | No | Yes | Yes | `PUT /api/recordings/database/*` |
+| **Database Vacuum & Storage Retention Pruning**| No | No | No | Yes | `POST /api/database/cleanup`, `POST /api/database/vacuum` |
+| **Configure Hardware BLE Gateways** | No | No | No | Yes | `POST /api/gateway/ble/vendor/config` |
+| **User Management (Provision / Deprovision)** | No | No | No | Yes | `GET /api/admin/users`, `POST /api/auth/register` |
+| **Modify Plant & Station Topology Hierarchy** | No | No | No | Yes | `POST /api/admin/hierarchy` |
+
+### 11.3 Immutable Audit Logging System
+
+Every critical administrative and operational intervention is permanently written to the `audit_log` table:
+
+```sql
+CREATE TABLE audit_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id VARCHAR NULL,
+    username VARCHAR NOT NULL,
+    action VARCHAR NOT NULL,
+    resource VARCHAR NULL,
+    details TEXT NULL,
+    ts DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX ix_audit_log_ts ON audit_log (ts);
 ```
 
-Every critical administrative action—including tool safety resets, emergency stop triggers, threshold modifications, model activations, and manual database record alterations—is stamped with user identity, timestamp, and client IP address in the immutable `audit_log` table for compliance with automotive manufacturing quality standards (ISO 9001 / IATF 16949).
+#### Audited Actions Catalogue
+- **`TOOL_RESET`**: Stamped with operator username, timestamp, and target station when clearing a lockout.
+- **`EMERGENCY_STOP`**: Records physical or software emergency stop actuation.
+- **`MODEL_TRAINED`** / **`MODEL_ACTIVATED`**: Logs machine learning model lifecycle events, dataset sizes, and ROC-AUC scores.
+- **`THRESHOLDS_UPDATED`**: Captures adjustments to calibrated Warn or Critical trip thresholds.
+- **`FEATURE_UPDATED`** / **`FEATURE_DELETED`** / **`FEATURE_CREATED`**: Audits manual inline database modifications.
+- **`DB_CLEANUP`** / **`DB_VACUUM`**: Records storage maintenance and retention policy executions.
+- **`SETTINGS_SAVED`** / **`GATEWAY_UPDATED`**: Tracks global branding, timezone, and BLE gateway parameter saves.
+
+### 11.4 Automotive Quality Standards Compliance
+
+| Standard | Clause / Section | Compliance Implementation |
+| :--- | :--- | :--- |
+| **IATF 16949:2016** | **7.1.5.2 (Measurement Traceability)** | Every vibration window, FFT feature, and anomaly score is stamped with station ID, timestamp, and device MAC address. |
+| **IATF 16949:2016** | **8.5.1.1 (Control Plan & Error-Proofing)** | Closed-loop state machine autonomously decelerates or stops spindles during anomalies, preventing defective torque-angle assemblies. |
+| **IATF 16949:2016** | **10.2.3 (Problem Solving & Root Cause)** | Full FFT spectra and trip reasons are persisted at moment of trip for rapid engineering failure analysis. |
+| **ISO 9001:2015** | **7.5 (Documented Information & Integrity)** | Immutable `audit_log` records user identity, timestamp, and details for every parameter change or tool reset. |
+| **ISO 9001:2015** | **8.5.1 (Production & Service Control)** | Strict RBAC prevents unauthorized personnel from altering trip thresholds or bypassing safety interlocks. |
+| **IEC 62443** | **SR 1.1 - SR 2.1 (Industrial Access Control)** | Bcrypt password hashing, signed JWT token expiration (8h), and role-based least-privilege enforcement. |
