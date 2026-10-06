@@ -1,0 +1,1702 @@
+[
+  {
+    "seq": 0,
+    "label": "normal",
+    "features": {
+      "rms": 0.1279,
+      "peak": 0.3543,
+      "peak_to_peak": 0.6179,
+      "crest_factor": 2.7703,
+      "kurtosis": -0.6282,
+      "skewness": -0.5256,
+      "dominant_freq": 50.0,
+      "spectral_centroid": 219.39,
+      "band_energies": {
+        "0_50Hz": 0.0003,
+        "50_150Hz": 0.0288,
+        "150_300Hz": 0.0024,
+        "300_500Hz": 0.0013
+      }
+    },
+    "features_vector": [
+      0.1279,
+      0.3543,
+      0.6179,
+      2.7703,
+      -0.6282,
+      -0.5256,
+      50.0,
+      219.39,
+      0.0003,
+      0.0288,
+      0.0024,
+      0.0013
+    ]
+  },
+  {
+    "seq": 1,
+    "label": "normal",
+    "features": {
+      "rms": 0.1293,
+      "peak": 0.3481,
+      "peak_to_peak": 0.6129,
+      "crest_factor": 2.6924,
+      "kurtosis": -0.5899,
+      "skewness": -0.5411,
+      "dominant_freq": 50.0,
+      "spectral_centroid": 221.4,
+      "band_energies": {
+        "0_50Hz": 0.0003,
+        "50_150Hz": 0.0292,
+        "150_300Hz": 0.0027,
+        "300_500Hz": 0.0013
+      }
+    },
+    "features_vector": [
+      0.1293,
+      0.3481,
+      0.6129,
+      2.6924,
+      -0.5899,
+      -0.5411,
+      50.0,
+      221.4,
+      0.0003,
+      0.0292,
+      0.0027,
+      0.0013
+    ]
+  },
+  {
+    "seq": 2,
+    "label": "normal",
+    "features": {
+      "rms": 0.1293,
+      "peak": 0.3425,
+      "peak_to_peak": 0.5963,
+      "crest_factor": 2.6487,
+      "kurtosis": -0.6292,
+      "skewness": -0.5029,
+      "dominant_freq": 50.0,
+      "spectral_centroid": 217.15,
+      "band_energies": {
+        "0_50Hz": 0.0003,
+        "50_150Hz": 0.0294,
+        "150_300Hz": 0.0024,
+        "300_500Hz": 0.0013
+      }
+    },
+    "features_vector": [
+      0.1293,
+      0.3425,
+      0.5963,
+      2.6487,
+      -0.6292,
+      -0.5029,
+      50.0,
+      217.15,
+      0.0003,
+      0.0294,
+      0.0024,
+      0.0013
+    ]
+  },
+  {
+    "seq": 3,
+    "label": "normal",
+    "features": {
+      "rms": 0.1296,
+      "peak": 0.3495,
+      "peak_to_peak": 0.5983,
+      "crest_factor": 2.6966,
+      "kurtosis": -0.6742,
+      "skewness": -0.479,
+      "dominant_freq": 50.0,
+      "spectral_centroid": 214.67,
+      "band_energies": {
+        "0_50Hz": 0.0003,
+        "50_150Hz": 0.0295,
+        "150_300Hz": 0.0027,
+        "300_500Hz": 0.0012
+      }
+    },
+    "features_vector": [
+      0.1296,
+      0.3495,
+      0.5983,
+      2.6966,
+      -0.6742,
+      -0.479,
+      50.0,
+      214.67,
+      0.0003,
+      0.0295,
+      0.0027,
+      0.0012
+    ]
+  },
+  {
+    "seq": 4,
+    "label": "normal",
+    "features": {
+      "rms": 0.1297,
+      "peak": 0.3454,
+      "peak_to_peak": 0.6217,
+      "crest_factor": 2.663,
+      "kurtosis": -0.6718,
+      "skewness": -0.4568,
+      "dominant_freq": 50.0,
+      "spectral_centroid": 218.27,
+      "band_energies": {
+        "0_50Hz": 0.0003,
+        "50_150Hz": 0.0295,
+        "150_300Hz": 0.0026,
+        "300_500Hz": 0.0012
+      }
+    },
+    "features_vector": [
+      0.1297,
+      0.3454,
+      0.6217,
+      2.663,
+      -0.6718,
+      -0.4568,
+      50.0,
+      218.27,
+      0.0003,
+      0.0295,
+      0.0026,
+      0.0012
+    ]
+  },
+  {
+    "seq": 5,
+    "label": "normal",
+    "features": {
+      "rms": 0.1317,
+      "peak": 0.3353,
+      "peak_to_peak": 0.5956,
+      "crest_factor": 2.5466,
+      "kurtosis": -0.6426,
+      "skewness": -0.4904,
+      "dominant_freq": 50.0,
+      "spectral_centroid": 219.44,
+      "band_energies": {
+        "0_50Hz": 0.0003,
+        "50_150Hz": 0.0302,
+        "150_300Hz": 0.0029,
+        "300_500Hz": 0.0013
+      }
+    },
+    "features_vector": [
+      0.1317,
+      0.3353,
+      0.5956,
+      2.5466,
+      -0.6426,
+      -0.4904,
+      50.0,
+      219.44,
+      0.0003,
+      0.0302,
+      0.0029,
+      0.0013
+    ]
+  },
+  {
+    "seq": 6,
+    "label": "normal",
+    "features": {
+      "rms": 0.1292,
+      "peak": 0.3427,
+      "peak_to_peak": 0.5956,
+      "crest_factor": 2.6515,
+      "kurtosis": -0.6123,
+      "skewness": -0.465,
+      "dominant_freq": 50.0,
+      "spectral_centroid": 215.58,
+      "band_energies": {
+        "0_50Hz": 0.0003,
+        "50_150Hz": 0.0292,
+        "150_300Hz": 0.0027,
+        "300_500Hz": 0.0012
+      }
+    },
+    "features_vector": [
+      0.1292,
+      0.3427,
+      0.5956,
+      2.6515,
+      -0.6123,
+      -0.465,
+      50.0,
+      215.58,
+      0.0003,
+      0.0292,
+      0.0027,
+      0.0012
+    ]
+  },
+  {
+    "seq": 7,
+    "label": "normal",
+    "features": {
+      "rms": 0.1309,
+      "peak": 0.3205,
+      "peak_to_peak": 0.5703,
+      "crest_factor": 2.4484,
+      "kurtosis": -0.675,
+      "skewness": -0.5002,
+      "dominant_freq": 50.0,
+      "spectral_centroid": 219.89,
+      "band_energies": {
+        "0_50Hz": 0.0003,
+        "50_150Hz": 0.03,
+        "150_300Hz": 0.0027,
+        "300_500Hz": 0.0013
+      }
+    },
+    "features_vector": [
+      0.1309,
+      0.3205,
+      0.5703,
+      2.4484,
+      -0.675,
+      -0.5002,
+      50.0,
+      219.89,
+      0.0003,
+      0.03,
+      0.0027,
+      0.0013
+    ]
+  },
+  {
+    "seq": 8,
+    "label": "normal",
+    "features": {
+      "rms": 0.1307,
+      "peak": 0.3267,
+      "peak_to_peak": 0.6063,
+      "crest_factor": 2.4985,
+      "kurtosis": -0.6148,
+      "skewness": -0.503,
+      "dominant_freq": 50.0,
+      "spectral_centroid": 219.42,
+      "band_energies": {
+        "0_50Hz": 0.0003,
+        "50_150Hz": 0.03,
+        "150_300Hz": 0.0026,
+        "300_500Hz": 0.0014
+      }
+    },
+    "features_vector": [
+      0.1307,
+      0.3267,
+      0.6063,
+      2.4985,
+      -0.6148,
+      -0.503,
+      50.0,
+      219.42,
+      0.0003,
+      0.03,
+      0.0026,
+      0.0014
+    ]
+  },
+  {
+    "seq": 9,
+    "label": "normal",
+    "features": {
+      "rms": 0.1301,
+      "peak": 0.3204,
+      "peak_to_peak": 0.5884,
+      "crest_factor": 2.4625,
+      "kurtosis": -0.6706,
+      "skewness": -0.5068,
+      "dominant_freq": 50.0,
+      "spectral_centroid": 222.84,
+      "band_energies": {
+        "0_50Hz": 0.0003,
+        "50_150Hz": 0.0298,
+        "150_300Hz": 0.0024,
+        "300_500Hz": 0.0014
+      }
+    },
+    "features_vector": [
+      0.1301,
+      0.3204,
+      0.5884,
+      2.4625,
+      -0.6706,
+      -0.5068,
+      50.0,
+      222.84,
+      0.0003,
+      0.0298,
+      0.0024,
+      0.0014
+    ]
+  },
+  {
+    "seq": 10,
+    "label": "normal",
+    "features": {
+      "rms": 0.1293,
+      "peak": 0.3256,
+      "peak_to_peak": 0.6186,
+      "crest_factor": 2.5194,
+      "kurtosis": -0.6314,
+      "skewness": -0.5231,
+      "dominant_freq": 50.0,
+      "spectral_centroid": 216.55,
+      "band_energies": {
+        "0_50Hz": 0.0003,
+        "50_150Hz": 0.0292,
+        "150_300Hz": 0.0026,
+        "300_500Hz": 0.0013
+      }
+    },
+    "features_vector": [
+      0.1293,
+      0.3256,
+      0.6186,
+      2.5194,
+      -0.6314,
+      -0.5231,
+      50.0,
+      216.55,
+      0.0003,
+      0.0292,
+      0.0026,
+      0.0013
+    ]
+  },
+  {
+    "seq": 11,
+    "label": "normal",
+    "features": {
+      "rms": 0.1305,
+      "peak": 0.3392,
+      "peak_to_peak": 0.5941,
+      "crest_factor": 2.6004,
+      "kurtosis": -0.6414,
+      "skewness": -0.5045,
+      "dominant_freq": 50.0,
+      "spectral_centroid": 220.66,
+      "band_energies": {
+        "0_50Hz": 0.0003,
+        "50_150Hz": 0.03,
+        "150_300Hz": 0.0024,
+        "300_500Hz": 0.0014
+      }
+    },
+    "features_vector": [
+      0.1305,
+      0.3392,
+      0.5941,
+      2.6004,
+      -0.6414,
+      -0.5045,
+      50.0,
+      220.66,
+      0.0003,
+      0.03,
+      0.0024,
+      0.0014
+    ]
+  },
+  {
+    "seq": 12,
+    "label": "normal",
+    "features": {
+      "rms": 0.1301,
+      "peak": 0.3257,
+      "peak_to_peak": 0.6044,
+      "crest_factor": 2.504,
+      "kurtosis": -0.6583,
+      "skewness": -0.4776,
+      "dominant_freq": 50.0,
+      "spectral_centroid": 219.14,
+      "band_energies": {
+        "0_50Hz": 0.0004,
+        "50_150Hz": 0.0297,
+        "150_300Hz": 0.0024,
+        "300_500Hz": 0.0014
+      }
+    },
+    "features_vector": [
+      0.1301,
+      0.3257,
+      0.6044,
+      2.504,
+      -0.6583,
+      -0.4776,
+      50.0,
+      219.14,
+      0.0004,
+      0.0297,
+      0.0024,
+      0.0014
+    ]
+  },
+  {
+    "seq": 13,
+    "label": "normal",
+    "features": {
+      "rms": 0.1294,
+      "peak": 0.3123,
+      "peak_to_peak": 0.5728,
+      "crest_factor": 2.4127,
+      "kurtosis": -0.6435,
+      "skewness": -0.4684,
+      "dominant_freq": 50.0,
+      "spectral_centroid": 218.14,
+      "band_energies": {
+        "0_50Hz": 0.0003,
+        "50_150Hz": 0.0293,
+        "150_300Hz": 0.0025,
+        "300_500Hz": 0.0013
+      }
+    },
+    "features_vector": [
+      0.1294,
+      0.3123,
+      0.5728,
+      2.4127,
+      -0.6435,
+      -0.4684,
+      50.0,
+      218.14,
+      0.0003,
+      0.0293,
+      0.0025,
+      0.0013
+    ]
+  },
+  {
+    "seq": 14,
+    "label": "normal",
+    "features": {
+      "rms": 0.1289,
+      "peak": 0.3471,
+      "peak_to_peak": 0.5969,
+      "crest_factor": 2.6927,
+      "kurtosis": -0.6246,
+      "skewness": -0.4822,
+      "dominant_freq": 50.0,
+      "spectral_centroid": 215.16,
+      "band_energies": {
+        "0_50Hz": 0.0004,
+        "50_150Hz": 0.0295,
+        "150_300Hz": 0.0021,
+        "300_500Hz": 0.0012
+      }
+    },
+    "features_vector": [
+      0.1289,
+      0.3471,
+      0.5969,
+      2.6927,
+      -0.6246,
+      -0.4822,
+      50.0,
+      215.16,
+      0.0004,
+      0.0295,
+      0.0021,
+      0.0012
+    ]
+  },
+  {
+    "seq": 15,
+    "label": "normal",
+    "features": {
+      "rms": 0.1316,
+      "peak": 0.3588,
+      "peak_to_peak": 0.6296,
+      "crest_factor": 2.7273,
+      "kurtosis": -0.6294,
+      "skewness": -0.5167,
+      "dominant_freq": 50.0,
+      "spectral_centroid": 218.11,
+      "band_energies": {
+        "0_50Hz": 0.0002,
+        "50_150Hz": 0.0304,
+        "150_300Hz": 0.0029,
+        "300_500Hz": 0.0012
+      }
+    },
+    "features_vector": [
+      0.1316,
+      0.3588,
+      0.6296,
+      2.7273,
+      -0.6294,
+      -0.5167,
+      50.0,
+      218.11,
+      0.0002,
+      0.0304,
+      0.0029,
+      0.0012
+    ]
+  },
+  {
+    "seq": 16,
+    "label": "normal",
+    "features": {
+      "rms": 0.131,
+      "peak": 0.3405,
+      "peak_to_peak": 0.6091,
+      "crest_factor": 2.5993,
+      "kurtosis": -0.6556,
+      "skewness": -0.4853,
+      "dominant_freq": 50.0,
+      "spectral_centroid": 220.06,
+      "band_energies": {
+        "0_50Hz": 0.0003,
+        "50_150Hz": 0.0302,
+        "150_300Hz": 0.0024,
+        "300_500Hz": 0.0014
+      }
+    },
+    "features_vector": [
+      0.131,
+      0.3405,
+      0.6091,
+      2.5993,
+      -0.6556,
+      -0.4853,
+      50.0,
+      220.06,
+      0.0003,
+      0.0302,
+      0.0024,
+      0.0014
+    ]
+  },
+  {
+    "seq": 17,
+    "label": "normal",
+    "features": {
+      "rms": 0.129,
+      "peak": 0.3351,
+      "peak_to_peak": 0.5892,
+      "crest_factor": 2.5978,
+      "kurtosis": -0.6302,
+      "skewness": -0.5121,
+      "dominant_freq": 50.0,
+      "spectral_centroid": 217.19,
+      "band_energies": {
+        "0_50Hz": 0.0003,
+        "50_150Hz": 0.0292,
+        "150_300Hz": 0.0025,
+        "300_500Hz": 0.0014
+      }
+    },
+    "features_vector": [
+      0.129,
+      0.3351,
+      0.5892,
+      2.5978,
+      -0.6302,
+      -0.5121,
+      50.0,
+      217.19,
+      0.0003,
+      0.0292,
+      0.0025,
+      0.0014
+    ]
+  },
+  {
+    "seq": 18,
+    "label": "normal",
+    "features": {
+      "rms": 0.1285,
+      "peak": 0.325,
+      "peak_to_peak": 0.6332,
+      "crest_factor": 2.5305,
+      "kurtosis": -0.5614,
+      "skewness": -0.5459,
+      "dominant_freq": 50.0,
+      "spectral_centroid": 215.24,
+      "band_energies": {
+        "0_50Hz": 0.0003,
+        "50_150Hz": 0.0289,
+        "150_300Hz": 0.0026,
+        "300_500Hz": 0.0012
+      }
+    },
+    "features_vector": [
+      0.1285,
+      0.325,
+      0.6332,
+      2.5305,
+      -0.5614,
+      -0.5459,
+      50.0,
+      215.24,
+      0.0003,
+      0.0289,
+      0.0026,
+      0.0012
+    ]
+  },
+  {
+    "seq": 19,
+    "label": "normal",
+    "features": {
+      "rms": 0.1298,
+      "peak": 0.3394,
+      "peak_to_peak": 0.5998,
+      "crest_factor": 2.6158,
+      "kurtosis": -0.6307,
+      "skewness": -0.4584,
+      "dominant_freq": 50.0,
+      "spectral_centroid": 218.85,
+      "band_energies": {
+        "0_50Hz": 0.0003,
+        "50_150Hz": 0.0294,
+        "150_300Hz": 0.0027,
+        "300_500Hz": 0.0013
+      }
+    },
+    "features_vector": [
+      0.1298,
+      0.3394,
+      0.5998,
+      2.6158,
+      -0.6307,
+      -0.4584,
+      50.0,
+      218.85,
+      0.0003,
+      0.0294,
+      0.0027,
+      0.0013
+    ]
+  },
+  {
+    "seq": 20,
+    "label": "normal",
+    "features": {
+      "rms": 0.1292,
+      "peak": 0.3355,
+      "peak_to_peak": 0.5813,
+      "crest_factor": 2.5967,
+      "kurtosis": -0.6512,
+      "skewness": -0.471,
+      "dominant_freq": 50.0,
+      "spectral_centroid": 215.96,
+      "band_energies": {
+        "0_50Hz": 0.0003,
+        "50_150Hz": 0.0294,
+        "150_300Hz": 0.0025,
+        "300_500Hz": 0.0012
+      }
+    },
+    "features_vector": [
+      0.1292,
+      0.3355,
+      0.5813,
+      2.5967,
+      -0.6512,
+      -0.471,
+      50.0,
+      215.96,
+      0.0003,
+      0.0294,
+      0.0025,
+      0.0012
+    ]
+  },
+  {
+    "seq": 21,
+    "label": "normal",
+    "features": {
+      "rms": 0.1306,
+      "peak": 0.3381,
+      "peak_to_peak": 0.6025,
+      "crest_factor": 2.5882,
+      "kurtosis": -0.6249,
+      "skewness": -0.5215,
+      "dominant_freq": 50.0,
+      "spectral_centroid": 214.42,
+      "band_energies": {
+        "0_50Hz": 0.0003,
+        "50_150Hz": 0.0299,
+        "150_300Hz": 0.0026,
+        "300_500Hz": 0.0013
+      }
+    },
+    "features_vector": [
+      0.1306,
+      0.3381,
+      0.6025,
+      2.5882,
+      -0.6249,
+      -0.5215,
+      50.0,
+      214.42,
+      0.0003,
+      0.0299,
+      0.0026,
+      0.0013
+    ]
+  },
+  {
+    "seq": 22,
+    "label": "normal",
+    "features": {
+      "rms": 0.129,
+      "peak": 0.3421,
+      "peak_to_peak": 0.587,
+      "crest_factor": 2.6525,
+      "kurtosis": -0.6025,
+      "skewness": -0.4869,
+      "dominant_freq": 50.0,
+      "spectral_centroid": 222.55,
+      "band_energies": {
+        "0_50Hz": 0.0003,
+        "50_150Hz": 0.0291,
+        "150_300Hz": 0.0025,
+        "300_500Hz": 0.0014
+      }
+    },
+    "features_vector": [
+      0.129,
+      0.3421,
+      0.587,
+      2.6525,
+      -0.6025,
+      -0.4869,
+      50.0,
+      222.55,
+      0.0003,
+      0.0291,
+      0.0025,
+      0.0014
+    ]
+  },
+  {
+    "seq": 23,
+    "label": "normal",
+    "features": {
+      "rms": 0.1293,
+      "peak": 0.336,
+      "peak_to_peak": 0.6021,
+      "crest_factor": 2.5993,
+      "kurtosis": -0.5817,
+      "skewness": -0.5417,
+      "dominant_freq": 50.0,
+      "spectral_centroid": 224.04,
+      "band_energies": {
+        "0_50Hz": 0.0002,
+        "50_150Hz": 0.0292,
+        "150_300Hz": 0.0027,
+        "300_500Hz": 0.0014
+      }
+    },
+    "features_vector": [
+      0.1293,
+      0.336,
+      0.6021,
+      2.5993,
+      -0.5817,
+      -0.5417,
+      50.0,
+      224.04,
+      0.0002,
+      0.0292,
+      0.0027,
+      0.0014
+    ]
+  },
+  {
+    "seq": 24,
+    "label": "normal",
+    "features": {
+      "rms": 0.1317,
+      "peak": 0.3501,
+      "peak_to_peak": 0.616,
+      "crest_factor": 2.658,
+      "kurtosis": -0.587,
+      "skewness": -0.526,
+      "dominant_freq": 50.0,
+      "spectral_centroid": 218.09,
+      "band_energies": {
+        "0_50Hz": 0.0003,
+        "50_150Hz": 0.0307,
+        "150_300Hz": 0.0023,
+        "300_500Hz": 0.0014
+      }
+    },
+    "features_vector": [
+      0.1317,
+      0.3501,
+      0.616,
+      2.658,
+      -0.587,
+      -0.526,
+      50.0,
+      218.09,
+      0.0003,
+      0.0307,
+      0.0023,
+      0.0014
+    ]
+  },
+  {
+    "seq": 25,
+    "label": "normal",
+    "features": {
+      "rms": 0.1312,
+      "peak": 0.3368,
+      "peak_to_peak": 0.598,
+      "crest_factor": 2.568,
+      "kurtosis": -0.6816,
+      "skewness": -0.4992,
+      "dominant_freq": 50.0,
+      "spectral_centroid": 213.18,
+      "band_energies": {
+        "0_50Hz": 0.0003,
+        "50_150Hz": 0.0305,
+        "150_300Hz": 0.0024,
+        "300_500Hz": 0.0012
+      }
+    },
+    "features_vector": [
+      0.1312,
+      0.3368,
+      0.598,
+      2.568,
+      -0.6816,
+      -0.4992,
+      50.0,
+      213.18,
+      0.0003,
+      0.0305,
+      0.0024,
+      0.0012
+    ]
+  },
+  {
+    "seq": 26,
+    "label": "normal",
+    "features": {
+      "rms": 0.1287,
+      "peak": 0.3277,
+      "peak_to_peak": 0.5938,
+      "crest_factor": 2.547,
+      "kurtosis": -0.6362,
+      "skewness": -0.4928,
+      "dominant_freq": 50.0,
+      "spectral_centroid": 221.9,
+      "band_energies": {
+        "0_50Hz": 0.0002,
+        "50_150Hz": 0.0288,
+        "150_300Hz": 0.0026,
+        "300_500Hz": 0.0014
+      }
+    },
+    "features_vector": [
+      0.1287,
+      0.3277,
+      0.5938,
+      2.547,
+      -0.6362,
+      -0.4928,
+      50.0,
+      221.9,
+      0.0002,
+      0.0288,
+      0.0026,
+      0.0014
+    ]
+  },
+  {
+    "seq": 27,
+    "label": "normal",
+    "features": {
+      "rms": 0.1298,
+      "peak": 0.357,
+      "peak_to_peak": 0.6512,
+      "crest_factor": 2.7516,
+      "kurtosis": -0.6536,
+      "skewness": -0.4564,
+      "dominant_freq": 50.0,
+      "spectral_centroid": 221.03,
+      "band_energies": {
+        "0_50Hz": 0.0003,
+        "50_150Hz": 0.0293,
+        "150_300Hz": 0.0027,
+        "300_500Hz": 0.0014
+      }
+    },
+    "features_vector": [
+      0.1298,
+      0.357,
+      0.6512,
+      2.7516,
+      -0.6536,
+      -0.4564,
+      50.0,
+      221.03,
+      0.0003,
+      0.0293,
+      0.0027,
+      0.0014
+    ]
+  },
+  {
+    "seq": 28,
+    "label": "normal",
+    "features": {
+      "rms": 0.1306,
+      "peak": 0.3904,
+      "peak_to_peak": 0.6279,
+      "crest_factor": 2.9894,
+      "kurtosis": -0.5397,
+      "skewness": -0.5406,
+      "dominant_freq": 50.0,
+      "spectral_centroid": 216.02,
+      "band_energies": {
+        "0_50Hz": 0.0004,
+        "50_150Hz": 0.0297,
+        "150_300Hz": 0.0027,
+        "300_500Hz": 0.0013
+      }
+    },
+    "features_vector": [
+      0.1306,
+      0.3904,
+      0.6279,
+      2.9894,
+      -0.5397,
+      -0.5406,
+      50.0,
+      216.02,
+      0.0004,
+      0.0297,
+      0.0027,
+      0.0013
+    ]
+  },
+  {
+    "seq": 29,
+    "label": "normal",
+    "features": {
+      "rms": 0.1332,
+      "peak": 0.3535,
+      "peak_to_peak": 0.6048,
+      "crest_factor": 2.6538,
+      "kurtosis": -0.5182,
+      "skewness": -0.5809,
+      "dominant_freq": 50.0,
+      "spectral_centroid": 219.53,
+      "band_energies": {
+        "0_50Hz": 0.0003,
+        "50_150Hz": 0.0309,
+        "150_300Hz": 0.003,
+        "300_500Hz": 0.0013
+      }
+    },
+    "features_vector": [
+      0.1332,
+      0.3535,
+      0.6048,
+      2.6538,
+      -0.5182,
+      -0.5809,
+      50.0,
+      219.53,
+      0.0003,
+      0.0309,
+      0.003,
+      0.0013
+    ]
+  },
+  {
+    "seq": 30,
+    "label": "normal",
+    "features": {
+      "rms": 0.1286,
+      "peak": 0.3585,
+      "peak_to_peak": 0.6356,
+      "crest_factor": 2.7886,
+      "kurtosis": -0.5994,
+      "skewness": -0.4578,
+      "dominant_freq": 50.0,
+      "spectral_centroid": 220.68,
+      "band_energies": {
+        "0_50Hz": 0.0002,
+        "50_150Hz": 0.0292,
+        "150_300Hz": 0.0023,
+        "300_500Hz": 0.0013
+      }
+    },
+    "features_vector": [
+      0.1286,
+      0.3585,
+      0.6356,
+      2.7886,
+      -0.5994,
+      -0.4578,
+      50.0,
+      220.68,
+      0.0002,
+      0.0292,
+      0.0023,
+      0.0013
+    ]
+  },
+  {
+    "seq": 31,
+    "label": "normal",
+    "features": {
+      "rms": 0.1317,
+      "peak": 0.3207,
+      "peak_to_peak": 0.5815,
+      "crest_factor": 2.4343,
+      "kurtosis": -0.6289,
+      "skewness": -0.528,
+      "dominant_freq": 50.0,
+      "spectral_centroid": 214.82,
+      "band_energies": {
+        "0_50Hz": 0.0003,
+        "50_150Hz": 0.0304,
+        "150_300Hz": 0.0028,
+        "300_500Hz": 0.0012
+      }
+    },
+    "features_vector": [
+      0.1317,
+      0.3207,
+      0.5815,
+      2.4343,
+      -0.6289,
+      -0.528,
+      50.0,
+      214.82,
+      0.0003,
+      0.0304,
+      0.0028,
+      0.0012
+    ]
+  },
+  {
+    "seq": 32,
+    "label": "normal",
+    "features": {
+      "rms": 0.1285,
+      "peak": 0.3335,
+      "peak_to_peak": 0.6,
+      "crest_factor": 2.5942,
+      "kurtosis": -0.6552,
+      "skewness": -0.4837,
+      "dominant_freq": 50.0,
+      "spectral_centroid": 215.4,
+      "band_energies": {
+        "0_50Hz": 0.0003,
+        "50_150Hz": 0.029,
+        "150_300Hz": 0.0023,
+        "300_500Hz": 0.0014
+      }
+    },
+    "features_vector": [
+      0.1285,
+      0.3335,
+      0.6,
+      2.5942,
+      -0.6552,
+      -0.4837,
+      50.0,
+      215.4,
+      0.0003,
+      0.029,
+      0.0023,
+      0.0014
+    ]
+  },
+  {
+    "seq": 33,
+    "label": "normal",
+    "features": {
+      "rms": 0.1285,
+      "peak": 0.3225,
+      "peak_to_peak": 0.6117,
+      "crest_factor": 2.5099,
+      "kurtosis": -0.564,
+      "skewness": -0.5565,
+      "dominant_freq": 50.0,
+      "spectral_centroid": 221.89,
+      "band_energies": {
+        "0_50Hz": 0.0002,
+        "50_150Hz": 0.0288,
+        "150_300Hz": 0.0026,
+        "300_500Hz": 0.0014
+      }
+    },
+    "features_vector": [
+      0.1285,
+      0.3225,
+      0.6117,
+      2.5099,
+      -0.564,
+      -0.5565,
+      50.0,
+      221.89,
+      0.0002,
+      0.0288,
+      0.0026,
+      0.0014
+    ]
+  },
+  {
+    "seq": 34,
+    "label": "normal",
+    "features": {
+      "rms": 0.1312,
+      "peak": 0.377,
+      "peak_to_peak": 0.6235,
+      "crest_factor": 2.8743,
+      "kurtosis": -0.6028,
+      "skewness": -0.5017,
+      "dominant_freq": 50.0,
+      "spectral_centroid": 215.03,
+      "band_energies": {
+        "0_50Hz": 0.0004,
+        "50_150Hz": 0.0301,
+        "150_300Hz": 0.0028,
+        "300_500Hz": 0.0012
+      }
+    },
+    "features_vector": [
+      0.1312,
+      0.377,
+      0.6235,
+      2.8743,
+      -0.6028,
+      -0.5017,
+      50.0,
+      215.03,
+      0.0004,
+      0.0301,
+      0.0028,
+      0.0012
+    ]
+  },
+  {
+    "seq": 35,
+    "label": "normal",
+    "features": {
+      "rms": 0.1285,
+      "peak": 0.3474,
+      "peak_to_peak": 0.6194,
+      "crest_factor": 2.7036,
+      "kurtosis": -0.6131,
+      "skewness": -0.4935,
+      "dominant_freq": 50.0,
+      "spectral_centroid": 216.02,
+      "band_energies": {
+        "0_50Hz": 0.0003,
+        "50_150Hz": 0.0289,
+        "150_300Hz": 0.0026,
+        "300_500Hz": 0.0012
+      }
+    },
+    "features_vector": [
+      0.1285,
+      0.3474,
+      0.6194,
+      2.7036,
+      -0.6131,
+      -0.4935,
+      50.0,
+      216.02,
+      0.0003,
+      0.0289,
+      0.0026,
+      0.0012
+    ]
+  },
+  {
+    "seq": 36,
+    "label": "normal",
+    "features": {
+      "rms": 0.1306,
+      "peak": 0.3531,
+      "peak_to_peak": 0.6325,
+      "crest_factor": 2.7034,
+      "kurtosis": -0.5241,
+      "skewness": -0.5192,
+      "dominant_freq": 50.0,
+      "spectral_centroid": 219.87,
+      "band_energies": {
+        "0_50Hz": 0.0002,
+        "50_150Hz": 0.0298,
+        "150_300Hz": 0.0027,
+        "300_500Hz": 0.0014
+      }
+    },
+    "features_vector": [
+      0.1306,
+      0.3531,
+      0.6325,
+      2.7034,
+      -0.5241,
+      -0.5192,
+      50.0,
+      219.87,
+      0.0002,
+      0.0298,
+      0.0027,
+      0.0014
+    ]
+  },
+  {
+    "seq": 37,
+    "label": "normal",
+    "features": {
+      "rms": 0.1293,
+      "peak": 0.322,
+      "peak_to_peak": 0.5783,
+      "crest_factor": 2.4897,
+      "kurtosis": -0.6241,
+      "skewness": -0.4989,
+      "dominant_freq": 50.0,
+      "spectral_centroid": 217.14,
+      "band_energies": {
+        "0_50Hz": 0.0004,
+        "50_150Hz": 0.0293,
+        "150_300Hz": 0.0025,
+        "300_500Hz": 0.0012
+      }
+    },
+    "features_vector": [
+      0.1293,
+      0.322,
+      0.5783,
+      2.4897,
+      -0.6241,
+      -0.4989,
+      50.0,
+      217.14,
+      0.0004,
+      0.0293,
+      0.0025,
+      0.0012
+    ]
+  },
+  {
+    "seq": 38,
+    "label": "normal",
+    "features": {
+      "rms": 0.1275,
+      "peak": 0.3239,
+      "peak_to_peak": 0.5552,
+      "crest_factor": 2.5398,
+      "kurtosis": -0.7216,
+      "skewness": -0.4678,
+      "dominant_freq": 50.0,
+      "spectral_centroid": 218.55,
+      "band_energies": {
+        "0_50Hz": 0.0002,
+        "50_150Hz": 0.0286,
+        "150_300Hz": 0.0026,
+        "300_500Hz": 0.0011
+      }
+    },
+    "features_vector": [
+      0.1275,
+      0.3239,
+      0.5552,
+      2.5398,
+      -0.7216,
+      -0.4678,
+      50.0,
+      218.55,
+      0.0002,
+      0.0286,
+      0.0026,
+      0.0011
+    ]
+  },
+  {
+    "seq": 39,
+    "label": "normal",
+    "features": {
+      "rms": 0.1306,
+      "peak": 0.3521,
+      "peak_to_peak": 0.6281,
+      "crest_factor": 2.6965,
+      "kurtosis": -0.5835,
+      "skewness": -0.5103,
+      "dominant_freq": 50.0,
+      "spectral_centroid": 214.02,
+      "band_energies": {
+        "0_50Hz": 0.0004,
+        "50_150Hz": 0.0298,
+        "150_300Hz": 0.0026,
+        "300_500Hz": 0.0013
+      }
+    },
+    "features_vector": [
+      0.1306,
+      0.3521,
+      0.6281,
+      2.6965,
+      -0.5835,
+      -0.5103,
+      50.0,
+      214.02,
+      0.0004,
+      0.0298,
+      0.0026,
+      0.0013
+    ]
+  },
+  {
+    "seq": 40,
+    "label": "normal",
+    "features": {
+      "rms": 0.1285,
+      "peak": 0.3374,
+      "peak_to_peak": 0.5726,
+      "crest_factor": 2.6256,
+      "kurtosis": -0.6038,
+      "skewness": -0.5448,
+      "dominant_freq": 50.0,
+      "spectral_centroid": 219.32,
+      "band_energies": {
+        "0_50Hz": 0.0003,
+        "50_150Hz": 0.029,
+        "150_300Hz": 0.0025,
+        "300_500Hz": 0.0013
+      }
+    },
+    "features_vector": [
+      0.1285,
+      0.3374,
+      0.5726,
+      2.6256,
+      -0.6038,
+      -0.5448,
+      50.0,
+      219.32,
+      0.0003,
+      0.029,
+      0.0025,
+      0.0013
+    ]
+  },
+  {
+    "seq": 41,
+    "label": "normal",
+    "features": {
+      "rms": 0.1296,
+      "peak": 0.3273,
+      "peak_to_peak": 0.6362,
+      "crest_factor": 2.5259,
+      "kurtosis": -0.4994,
+      "skewness": -0.5307,
+      "dominant_freq": 50.0,
+      "spectral_centroid": 220.16,
+      "band_energies": {
+        "0_50Hz": 0.0004,
+        "50_150Hz": 0.029,
+        "150_300Hz": 0.0028,
+        "300_500Hz": 0.0014
+      }
+    },
+    "features_vector": [
+      0.1296,
+      0.3273,
+      0.6362,
+      2.5259,
+      -0.4994,
+      -0.5307,
+      50.0,
+      220.16,
+      0.0004,
+      0.029,
+      0.0028,
+      0.0014
+    ]
+  },
+  {
+    "seq": 42,
+    "label": "normal",
+    "features": {
+      "rms": 0.1295,
+      "peak": 0.3305,
+      "peak_to_peak": 0.575,
+      "crest_factor": 2.5523,
+      "kurtosis": -0.6417,
+      "skewness": -0.4945,
+      "dominant_freq": 50.0,
+      "spectral_centroid": 216.85,
+      "band_energies": {
+        "0_50Hz": 0.0003,
+        "50_150Hz": 0.0295,
+        "150_300Hz": 0.0025,
+        "300_500Hz": 0.0012
+      }
+    },
+    "features_vector": [
+      0.1295,
+      0.3305,
+      0.575,
+      2.5523,
+      -0.6417,
+      -0.4945,
+      50.0,
+      216.85,
+      0.0003,
+      0.0295,
+      0.0025,
+      0.0012
+    ]
+  },
+  {
+    "seq": 43,
+    "label": "normal",
+    "features": {
+      "rms": 0.1309,
+      "peak": 0.3474,
+      "peak_to_peak": 0.6249,
+      "crest_factor": 2.6541,
+      "kurtosis": -0.5345,
+      "skewness": -0.5448,
+      "dominant_freq": 50.0,
+      "spectral_centroid": 218.7,
+      "band_energies": {
+        "0_50Hz": 0.0003,
+        "50_150Hz": 0.0299,
+        "150_300Hz": 0.0028,
+        "300_500Hz": 0.0013
+      }
+    },
+    "features_vector": [
+      0.1309,
+      0.3474,
+      0.6249,
+      2.6541,
+      -0.5345,
+      -0.5448,
+      50.0,
+      218.7,
+      0.0003,
+      0.0299,
+      0.0028,
+      0.0013
+    ]
+  },
+  {
+    "seq": 44,
+    "label": "normal",
+    "features": {
+      "rms": 0.1301,
+      "peak": 0.3308,
+      "peak_to_peak": 0.596,
+      "crest_factor": 2.542,
+      "kurtosis": -0.6147,
+      "skewness": -0.5012,
+      "dominant_freq": 50.0,
+      "spectral_centroid": 218.53,
+      "band_energies": {
+        "0_50Hz": 0.0003,
+        "50_150Hz": 0.0298,
+        "150_300Hz": 0.0026,
+        "300_500Hz": 0.0013
+      }
+    },
+    "features_vector": [
+      0.1301,
+      0.3308,
+      0.596,
+      2.542,
+      -0.6147,
+      -0.5012,
+      50.0,
+      218.53,
+      0.0003,
+      0.0298,
+      0.0026,
+      0.0013
+    ]
+  },
+  {
+    "seq": 45,
+    "label": "normal",
+    "features": {
+      "rms": 0.1317,
+      "peak": 0.3434,
+      "peak_to_peak": 0.6167,
+      "crest_factor": 2.607,
+      "kurtosis": -0.6642,
+      "skewness": -0.5289,
+      "dominant_freq": 50.0,
+      "spectral_centroid": 219.91,
+      "band_energies": {
+        "0_50Hz": 0.0003,
+        "50_150Hz": 0.0305,
+        "150_300Hz": 0.0026,
+        "300_500Hz": 0.0013
+      }
+    },
+    "features_vector": [
+      0.1317,
+      0.3434,
+      0.6167,
+      2.607,
+      -0.6642,
+      -0.5289,
+      50.0,
+      219.91,
+      0.0003,
+      0.0305,
+      0.0026,
+      0.0013
+    ]
+  },
+  {
+    "seq": 46,
+    "label": "normal",
+    "features": {
+      "rms": 0.1277,
+      "peak": 0.3546,
+      "peak_to_peak": 0.5935,
+      "crest_factor": 2.7769,
+      "kurtosis": -0.483,
+      "skewness": -0.5798,
+      "dominant_freq": 50.0,
+      "spectral_centroid": 215.51,
+      "band_energies": {
+        "0_50Hz": 0.0004,
+        "50_150Hz": 0.0286,
+        "150_300Hz": 0.0024,
+        "300_500Hz": 0.0012
+      }
+    },
+    "features_vector": [
+      0.1277,
+      0.3546,
+      0.5935,
+      2.7769,
+      -0.483,
+      -0.5798,
+      50.0,
+      215.51,
+      0.0004,
+      0.0286,
+      0.0024,
+      0.0012
+    ]
+  },
+  {
+    "seq": 47,
+    "label": "normal",
+    "features": {
+      "rms": 0.13,
+      "peak": 0.3706,
+      "peak_to_peak": 0.6232,
+      "crest_factor": 2.8516,
+      "kurtosis": -0.5933,
+      "skewness": -0.5095,
+      "dominant_freq": 50.0,
+      "spectral_centroid": 214.68,
+      "band_energies": {
+        "0_50Hz": 0.0003,
+        "50_150Hz": 0.0296,
+        "150_300Hz": 0.0027,
+        "300_500Hz": 0.0012
+      }
+    },
+    "features_vector": [
+      0.13,
+      0.3706,
+      0.6232,
+      2.8516,
+      -0.5933,
+      -0.5095,
+      50.0,
+      214.68,
+      0.0003,
+      0.0296,
+      0.0027,
+      0.0012
+    ]
+  },
+  {
+    "seq": 48,
+    "label": "normal",
+    "features": {
+      "rms": 0.1303,
+      "peak": 0.3452,
+      "peak_to_peak": 0.6216,
+      "crest_factor": 2.648,
+      "kurtosis": -0.5642,
+      "skewness": -0.5246,
+      "dominant_freq": 50.0,
+      "spectral_centroid": 214.71,
+      "band_energies": {
+        "0_50Hz": 0.0003,
+        "50_150Hz": 0.0298,
+        "150_300Hz": 0.0027,
+        "300_500Hz": 0.0012
+      }
+    },
+    "features_vector": [
+      0.1303,
+      0.3452,
+      0.6216,
+      2.648,
+      -0.5642,
+      -0.5246,
+      50.0,
+      214.71,
+      0.0003,
+      0.0298,
+      0.0027,
+      0.0012
+    ]
+  },
+  {
+    "seq": 49,
+    "label": "normal",
+    "features": {
+      "rms": 0.1304,
+      "peak": 0.3316,
+      "peak_to_peak": 0.6091,
+      "crest_factor": 2.5434,
+      "kurtosis": -0.6311,
+      "skewness": -0.4867,
+      "dominant_freq": 50.0,
+      "spectral_centroid": 218.74,
+      "band_energies": {
+        "0_50Hz": 0.0003,
+        "50_150Hz": 0.0299,
+        "150_300Hz": 0.0025,
+        "300_500Hz": 0.0013
+      }
+    },
+    "features_vector": [
+      0.1304,
+      0.3316,
+      0.6091,
+      2.5434,
+      -0.6311,
+      -0.4867,
+      50.0,
+      218.74,
+      0.0003,
+      0.0299,
+      0.0025,
+      0.0013
+    ]
+  }
+]
