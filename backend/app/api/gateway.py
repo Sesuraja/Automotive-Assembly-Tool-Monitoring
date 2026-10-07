@@ -166,6 +166,21 @@ async def ingest_ble_gateway_telemetry(
         "timestamp": now.isoformat()
     }
 
+@router.get("/telemetry")
+def get_ble_gateway_telemetry():
+    """
+    Returns latest telemetry snapshot or connection guidance when requested via GET.
+    """
+    if IngestionService.latest_reading:
+        return IngestionService.latest_reading
+    return {
+        "status": "online",
+        "endpoint": f"{settings.API_V1_STR}/gateway/ble/telemetry",
+        "method_expected": "POST",
+        "message": "BLE gateway telemetry endpoint is operational. Push sensor packets via POST, or poll live data via /api/v1/vibration/live.",
+        "sample_rate_hz": 1000
+    }
+
 @router.get("/gateways")
 def list_ble_gateways():
     """
@@ -377,6 +392,45 @@ def update_vendor_gateway_config(
     return {
         "status": "success",
         "message": "Vendor BLE Gateway configuration saved to database successfully",
+        "config": {
+            "id": cfg.id,
+            "name": cfg.name,
+            "vendor_type": cfg.vendor_type,
+            "api_url": cfg.api_url,
+            "poll_interval_sec": cfg.poll_interval_sec,
+            "station_id": cfg.station_id,
+            "is_active": cfg.is_active,
+            "last_status": cfg.last_status
+        }
+    }
+
+@router.post("/vendor/reset-to-env")
+def reset_vendor_gateway_to_env(db: Session = Depends(get_db)):
+    """
+    Resets the Vendor BLE Gateway configuration directly back to values defined in .env / system settings.
+    """
+    cfg = db.query(VendorGatewayConfig).filter(VendorGatewayConfig.id == "default-vendor-gateway").first()
+    if not cfg:
+        cfg = VendorGatewayConfig(id="default-vendor-gateway")
+        db.add(cfg)
+
+    cfg.name = "Primary Industrial BLE Gateway"
+    cfg.vendor_type = settings.VENDOR_BLE_GATEWAY_TYPE or "GenericREST"
+    cfg.api_url = settings.VENDOR_BLE_GATEWAY_URL or f"{settings.VENDOR_API_BASE_URL.rstrip('/')}/api/simulation/hardware"
+    cfg.api_key = settings.VENDOR_BLE_GATEWAY_API_KEY or ""
+    cfg.poll_interval_sec = settings.VENDOR_BLE_GATEWAY_POLL_INTERVAL_SEC or 1.0
+    cfg.station_id = "station-A"
+    cfg.mac_filter = "C4:4F:33:18:9A:2B"
+    cfg.is_active = True
+    cfg.updated_at = datetime.utcnow()
+    cfg.last_status = "configured"
+    cfg.last_error = None
+
+    db.commit()
+    db.refresh(cfg)
+    return {
+        "status": "success",
+        "message": "Vendor Gateway configuration successfully reset to .env environment settings",
         "config": {
             "id": cfg.id,
             "name": cfg.name,

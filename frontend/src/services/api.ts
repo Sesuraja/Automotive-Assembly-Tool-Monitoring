@@ -615,6 +615,14 @@ export const api = {
     return res.json();
   },
 
+  async resetVendorGatewayToEnv() {
+    const res = await fetch(`${API_BASE}/gateway/ble/vendor/reset-to-env`, {
+      method: 'POST',
+      headers: getHeaders(),
+    });
+    return res.json();
+  },
+
   async testVendorEndpoint(apiUrl: string, apiKey?: string, vendorType?: string) {
     const res = await fetch(`${API_BASE}/gateway/ble/vendor/test-endpoint`, {
       method: 'POST',

@@ -1,5 +1,7 @@
 import asyncio
+from typing import Optional
 from fastapi import APIRouter, Depends, BackgroundTasks
+from sqlalchemy.orm import Session
 from backend.app.database import get_db, SessionLocal
 from backend.app.schemas.pydantic_models import (
     SimulatorScenarioRequest,

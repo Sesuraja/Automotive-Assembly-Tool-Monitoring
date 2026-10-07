@@ -25,8 +25,6 @@ import type {
 import { api } from '../../services/api';
 import { ENV } from '../../config/env';
 
-const CLOUD_RUN_LIVE_URL = ENV.VENDOR_BLE_GATEWAY_URL;
-
 export const BleGatewayView: React.FC = () => {
   const [gateways, setGateways] = useState<BleGateway[]>([]);
   const [docs, setDocs] = useState<BleGatewayDocs | null>(null);
@@ -150,6 +148,20 @@ export const BleGatewayView: React.FC = () => {
       });
     } finally {
       setIsSyncingVendor(false);
+    }
+  };
+
+  const handleResetToEnv = async () => {
+    setIsSavingVendor(true);
+    try {
+      const res = await api.resetVendorGatewayToEnv();
+      setVendorSaveFeedback(res.message || 'Reset to .env configuration successfully.');
+      setTimeout(() => setVendorSaveFeedback(null), 4000);
+      await fetchGatewayData();
+    } catch (err: any) {
+      alert(err.message || 'Failed to reset to .env configuration');
+    } finally {
+      setIsSavingVendor(false);
     }
   };
 
@@ -559,26 +571,49 @@ void sendBleTelemetryToBackend(float* samples, int sampleCount, float rpm) {
                   <button
                     type="button"
                     onClick={() => {
-                      setVendorUrl(CLOUD_RUN_LIVE_URL);
+                      setVendorUrl(ENV.VENDOR_BLE_GATEWAY_URL);
                       setVendorType('GenericREST');
                     }}
                     style={{
                       display: 'inline-flex',
                       alignItems: 'center',
                       gap: '0.25rem',
-                      background: vendorUrl === CLOUD_RUN_LIVE_URL ? '#e0f2fe' : '#f1f5f9',
-                      color: vendorUrl === CLOUD_RUN_LIVE_URL ? '#0369a1' : '#334155',
-                      border: vendorUrl === CLOUD_RUN_LIVE_URL ? '1px solid #7dd3fc' : '1px solid #cbd5e1',
+                      background: vendorUrl === ENV.VENDOR_BLE_GATEWAY_URL ? '#e0f2fe' : '#f1f5f9',
+                      color: vendorUrl === ENV.VENDOR_BLE_GATEWAY_URL ? '#0369a1' : '#334155',
+                      border: vendorUrl === ENV.VENDOR_BLE_GATEWAY_URL ? '1px solid #7dd3fc' : '1px solid #cbd5e1',
                       borderRadius: 4,
                       padding: '0.2rem 0.5rem',
                       fontSize: '0.7rem',
                       fontWeight: 600,
                       cursor: 'pointer',
                     }}
-                    title="Load the user Cloud Run live vibration endpoint"
+                    title="Load Cloud Run hardware simulation endpoint (/api/simulation/hardware)"
                   >
                     <Sparkles size={11} color="#0284c7" />
-                    <span>Cloud Run Live API</span>
+                    <span>Cloud Run Hardware</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setVendorUrl(ENV.VENDOR_LIVE_VIBRATION_URL);
+                      setVendorType('GenericREST');
+                    }}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.25rem',
+                      background: vendorUrl === ENV.VENDOR_LIVE_VIBRATION_URL ? '#e0f2fe' : '#f1f5f9',
+                      color: vendorUrl === ENV.VENDOR_LIVE_VIBRATION_URL ? '#0369a1' : '#334155',
+                      border: vendorUrl === ENV.VENDOR_LIVE_VIBRATION_URL ? '1px solid #7dd3fc' : '1px solid #cbd5e1',
+                      borderRadius: 4,
+                      padding: '0.2rem 0.5rem',
+                      fontSize: '0.7rem',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                    }}
+                    title="Load Cloud Run live vibration endpoint (/api/vibration/live)"
+                  >
+                    <span>Cloud Run Live</span>
                   </button>
                   <button
                     type="button"
@@ -597,12 +632,12 @@ void sendBleTelemetryToBackend(float* samples, int sampleCount, float rpm) {
                       cursor: 'pointer',
                     }}
                   >
-                    Plant Subnet (192.168.4.150)
+                    Plant Subnet
                   </button>
                   <button
                     type="button"
                     onClick={() => {
-                      setVendorUrl('http://127.0.0.1:8000/api/v1/gateway/ble/telemetry');
+                      setVendorUrl('http://127.0.0.1:8000/api/v1/vibration/live');
                       setVendorType('GenericREST');
                     }}
                     style={{
@@ -615,8 +650,29 @@ void sendBleTelemetryToBackend(float* samples, int sampleCount, float rpm) {
                       fontWeight: 600,
                       cursor: 'pointer',
                     }}
+                    title="Local FastAPI live vibration endpoint"
                   >
                     Local Loopback
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleResetToEnv}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.25rem',
+                      background: '#fef3c7',
+                      color: '#92400e',
+                      border: '1px solid #fde68a',
+                      borderRadius: 4,
+                      padding: '0.2rem 0.5rem',
+                      fontSize: '0.7rem',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                    }}
+                    title="Restore configuration directly from .env file into database"
+                  >
+                    <span>Reset to .env</span>
                   </button>
                 </div>
               </div>
