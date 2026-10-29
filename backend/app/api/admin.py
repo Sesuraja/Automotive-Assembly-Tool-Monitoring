@@ -163,16 +163,6 @@ def update_settings(payload: SystemSettingsPayload, db: Session = Depends(get_db
             if payload.motor_trip_mode is not None and str(payload.motor_trip_mode).strip().upper() == "MANUAL":
                 eng.reset(operator="Mode change to MANUAL", notes="Resetting engine state due to manual mode selection")
 
-    # 2. Dynamically reflect configured motor rated RPM into Virtual Motor Simulator
-    try:
-        from simulator.virtual_rig import simulator_rig
-        if payload.motor_rated_rpm is not None:
-            simulator_rig.motor.set_rated_rpm(float(payload.motor_rated_rpm))
-        elif payload.motor_max_rpm is not None:
-            simulator_rig.motor.set_rated_rpm(float(payload.motor_max_rpm))
-    except Exception as ex:
-        print(f"[Admin Settings] Simulator motor RPM update note: {ex}")
-
     # 3. Reflect Threshold Tuning to Models (Database MLModelRecord & in-memory active model)
     if payload.warn_threshold is not None or payload.critical_threshold is not None:
         active_models = db.query(MLModelRecord).filter(MLModelRecord.active_flag == True).all()

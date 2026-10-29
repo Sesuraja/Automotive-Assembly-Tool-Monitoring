@@ -12,7 +12,6 @@ import {
 } from 'lucide-react';
 import { api } from '../services/api';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { useAppSettings } from '../context/AppSettingsContext';
 
 interface HeaderProps {
   stationState: StationState;
@@ -43,7 +42,6 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { settings } = useAppSettings();
   const [showLoginModal, setShowLoginModal] = useState<boolean>(false);
   const [loginUser, setLoginUser] = useState<string>('admin');
   const [loginPass, setLoginPass] = useState<string>('admin123');
@@ -75,7 +73,7 @@ export const Header: React.FC<HeaderProps> = ({
       const next = !prev;
       try {
         localStorage.setItem('aperture_siren_muted', String(next));
-      } catch {}
+      } catch { }
       return next;
     });
   };
@@ -84,7 +82,7 @@ export const Header: React.FC<HeaderProps> = ({
     setSirenSound(newSound);
     try {
       localStorage.setItem('aperture_siren_sound', newSound);
-    } catch {}
+    } catch { }
   };
 
   // Industrial Plant Warning Siren Synthesizer via Web Audio API
@@ -105,7 +103,7 @@ export const Header: React.FC<HeaderProps> = ({
       if (audioCtx.state === 'suspended') {
         const resumeAudio = () => {
           if (audioCtx && audioCtx.state === 'suspended') {
-            audioCtx.resume().catch(() => {});
+            audioCtx.resume().catch(() => { });
           }
           window.removeEventListener('click', resumeAudio);
           window.removeEventListener('keydown', resumeAudio);
@@ -217,7 +215,7 @@ export const Header: React.FC<HeaderProps> = ({
         if (audioCtx && audioCtx.state !== 'closed') {
           audioCtx.close();
         }
-      } catch {}
+      } catch { }
     };
   }, [isStopped, isSirenMuted, sirenSound]);
 
@@ -249,24 +247,10 @@ export const Header: React.FC<HeaderProps> = ({
 
   return (
     <header className="top-header">
-      {/* Active View Title & Station Identifier */}
+      {/* Active View Title */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
         <span style={{ fontWeight: 700, fontSize: '1rem', color: '#0f172a', letterSpacing: '-0.01em' }}>
           {getPageTitle(location.pathname)}
-        </span>
-        <span
-          style={{
-            fontSize: '0.72rem',
-            background: '#f1f5f9',
-            border: '1px solid #cbd5e1',
-            padding: '0.15rem 0.5rem',
-            borderRadius: 4,
-            color: '#475569',
-            fontWeight: 600,
-          }}
-          title={`Active Station: ${settings.stationName} (${settings.stationId})`}
-        >
-          {settings.stationName} &bull; {settings.stationId}
         </span>
       </div>
 

@@ -20,7 +20,7 @@ interface ClosedLoopArchitectureSimulationProps {
 }
 
 export const ClosedLoopArchitectureSimulation: React.FC<ClosedLoopArchitectureSimulationProps> = ({
-  simState,
+  simState: _simState,
   telemetry,
   onRefresh,
 }) => {
@@ -48,15 +48,15 @@ export const ClosedLoopArchitectureSimulation: React.FC<ClosedLoopArchitectureSi
     return () => clearInterval(interval);
   }, [telemetry]);
 
-  const currentRpm = telemetry?.measured_rpm ?? localReading?.measured_rpm ?? simState?.virtual_rpm ?? ratedRpm;
-  const commandedPct = telemetry?.commanded_speed_pct ?? (localReading?.status === 'OFF' ? 0 : localReading?.status === 'SLOW' ? 50 : 100);
-  const state = telemetry?.state ?? (localReading?.status === 'OFF' ? 'STOPPED' : localReading?.status === 'SLOW' ? 'REDUCED_SPEED' : 'NORMAL');
-  const indicatorLight = telemetry?.indicator_light ?? (localReading?.status === 'OFF' ? 'RED' : localReading?.status === 'SLOW' ? 'AMBER' : 'GREEN');
-  const anomalyScore = telemetry?.smoothed_anomaly_score ?? (state === 'NORMAL' ? 0.04 : state === 'REDUCED_SPEED' ? 0.22 : 0.88);
-  const rms = telemetry?.features?.rms ?? localReading?.rms_g ?? 0.48;
-  const peak = telemetry?.features?.peak ?? (rms * 1.85);
-  const dominantFreq = telemetry?.features?.dominant_freq ?? 333.3;
-  const seq = telemetry?.seq ?? (localReading?.timestamp ? Math.floor(new Date(localReading.timestamp).getTime() / 1000) : 1001);
+  const currentRpm = telemetry?.measured_rpm ?? localReading?.measured_rpm ?? 0;
+  const commandedPct = telemetry?.commanded_speed_pct ?? (localReading?.status === 'OFF' ? 0 : localReading?.status === 'SLOW' ? 50 : (localReading?.commanded_speed_pct ?? 0));
+  const state = telemetry?.state ?? localReading?.state ?? (localReading?.status === 'OFF' ? 'STOPPED' : localReading?.status === 'SLOW' ? 'REDUCED_SPEED' : 'NORMAL');
+  const indicatorLight = telemetry?.indicator_light ?? localReading?.indicator_light ?? (state === 'STOPPED' ? 'RED' : state === 'REDUCED_SPEED' ? 'AMBER' : 'GREEN');
+  const anomalyScore = telemetry?.smoothed_anomaly_score ?? localReading?.smoothed_anomaly_score ?? localReading?.anomaly_score ?? 0;
+  const rms = telemetry?.features?.rms ?? localReading?.rms_g ?? localReading?.rms ?? 0;
+  const peak = telemetry?.features?.peak ?? localReading?.peak_g ?? localReading?.peak ?? 0;
+  const dominantFreq = telemetry?.features?.dominant_freq ?? localReading?.features?.dominant_freq ?? 0;
+  const seq = telemetry?.seq ?? localReading?.seq ?? 0;
 
   const isStopped = currentRpm < 50 || state === 'STOPPED';
   const isSlow = !isStopped && (currentRpm < (ratedRpm * 0.65) || commandedPct <= 55 || state === 'REDUCED_SPEED');
@@ -190,15 +190,15 @@ export const ClosedLoopArchitectureSimulation: React.FC<ClosedLoopArchitectureSi
           <div className="node-metric-box">
             <div className="node-metric-row">
               <span>RSSI:</span>
-              <strong className="font-mono">-56 dBm</strong>
+              <strong className="font-mono">{telemetry?.rssi ?? localReading?.rssi ?? '--'} dBm</strong>
             </div>
             <div className="node-metric-row">
               <span>Rate:</span>
-              <strong className="font-mono">10 Hz</strong>
+              <strong className="font-mono">{(telemetry as any)?.sample_rate_hz || localReading?.sample_rate_hz ? `${(telemetry as any)?.sample_rate_hz || localReading?.sample_rate_hz} Hz` : 'Live Stream'}</strong>
             </div>
             <div className="node-metric-row">
               <span>Seq:</span>
-              <strong className="font-mono">#{seq}</strong>
+              <strong className="font-mono">#{seq || '--'}</strong>
             </div>
           </div>
           <div className="node-badge" style={{ background: '#ecfdf5', color: '#065f46' }}>
@@ -211,7 +211,7 @@ export const ClosedLoopArchitectureSimulation: React.FC<ClosedLoopArchitectureSi
           <div className="conduit-line" style={{ background: flowColor }}></div>
           <div className="conduit-pulse" style={{ background: flowColor }}></div>
           <div className="conduit-label">
-            <span>MQTT / JSON</span>
+            <span>JSON API Stream</span>
           </div>
         </div>
 
@@ -227,15 +227,15 @@ export const ClosedLoopArchitectureSimulation: React.FC<ClosedLoopArchitectureSi
           <div className="node-metric-box">
             <div className="node-metric-row">
               <span>Latency:</span>
-              <strong className="font-mono" style={{ color: '#059669' }}>&lt; 8 ms</strong>
+              <strong className="font-mono" style={{ color: '#059669' }}>Live</strong>
             </div>
             <div className="node-metric-row">
-              <span>Window:</span>
-              <strong className="font-mono">1,000 pts</strong>
+              <span>Sensor:</span>
+              <strong className="font-mono">{telemetry?.device_id || localReading?.device_id || 'Active'}</strong>
             </div>
             <div className="node-metric-row">
               <span>Dominant:</span>
-              <strong className="font-mono" style={{ color: '#0284c7' }}>{dominantFreq.toFixed(0)} Hz</strong>
+              <strong className="font-mono" style={{ color: '#0284c7' }}>{dominantFreq > 0 ? `${dominantFreq.toFixed(0)} Hz` : '--'}</strong>
             </div>
           </div>
           <div className="node-badge" style={{ background: '#f1f5f9', color: '#334155' }}>

@@ -15,16 +15,43 @@ function getHeaders(customHeaders: Record<string, string> = {}) {
 export const api = {
   // Auth
   async login(username: string, password: string) {
-    const res = await fetch(`${API_BASE}/auth/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password }),
-    });
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.detail || 'Authentication failed');
+    let res: Response;
+    try {
+      res = await fetch(`${API_BASE}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: (username || '').trim(), password }),
+      });
+    } catch (netErr: any) {
+      throw new Error('Unable to connect to backend server. Please verify the backend is running.');
     }
-    const data = await res.json();
+
+    if (!res.ok) {
+      let errorMsg = 'Incorrect username or password';
+      try {
+        const err = await res.json();
+        if (err && err.detail) {
+          errorMsg = typeof err.detail === 'string' ? err.detail : JSON.stringify(err.detail);
+        }
+      } catch {
+        if (res.status === 401) {
+          errorMsg = 'Incorrect username or password';
+        } else if (res.status === 502 || res.status === 503) {
+          errorMsg = 'Backend service is temporarily unavailable. Please retry in a few moments.';
+        } else {
+          errorMsg = `Server error (${res.status}). Please try again.`;
+        }
+      }
+      throw new Error(errorMsg);
+    }
+
+    let data: any;
+    try {
+      data = await res.json();
+    } catch {
+      throw new Error('Authentication succeeded but received an empty response from server.');
+    }
+
     if (data.access_token) {
       localStorage.setItem('tool_monitor_token', data.access_token);
       localStorage.setItem('tool_monitor_user', JSON.stringify(data));
@@ -106,11 +133,11 @@ export const api = {
     return res.json();
   },
 
-  async resetStation(stationId: string, operator: string, notes?: string) {
+  async resetStation(stationId: string, operator: string, notes?: string, rpm?: number) {
     const res = await fetch(`${API_BASE}/stations/${stationId}/reset`, {
       method: 'POST',
       headers: getHeaders(),
-      body: JSON.stringify({ action: 'RESET', operator, notes }),
+      body: JSON.stringify({ action: 'RESET', operator, notes, rpm }),
     });
     if (!res.ok) {
       const err = await res.json();
@@ -212,9 +239,39 @@ export const api = {
     return res.json();
   },
 
-  async getLatestReading() {
-    const res = await fetch(`${API_BASE}/readings/latest`, { headers: getHeaders() });
+  async getLatestReading(deviceIds?: string[]) {
+    let url = `${API_BASE}/readings/latest`;
+    if (deviceIds && deviceIds.length > 0) {
+      const valid = deviceIds.filter(id => id && id !== 'all');
+      if (valid.length > 0) {
+        url += `?device_ids=${encodeURIComponent(valid.join(','))}`;
+      }
+    }
+    const res = await fetch(url, { headers: getHeaders() });
     if (!res.ok) return null;
+    return res.json();
+  },
+
+  async getSelectedDevices(): Promise<string[]> {
+    try {
+      const res = await fetch(`${API_BASE}/gateway/ble/selected-devices`, { headers: getHeaders() });
+      if (!res.ok) return [];
+      const data = await res.json();
+      return Array.isArray(data.selected_device_ids) ? data.selected_device_ids : [];
+    } catch {
+      return [];
+    }
+  },
+
+  async saveSelectedDevices(deviceIds: string[]): Promise<{ status: string; selected_device_ids: string[] }> {
+    const res = await fetch(`${API_BASE}/gateway/ble/selected-devices`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({ selected_device_ids: deviceIds }),
+    });
+    if (!res.ok) {
+      throw new Error('Failed to save selected devices to database');
+    }
     return res.json();
   },
 
@@ -566,20 +623,9 @@ export const api = {
     return res.json();
   },
 
-  async sendBleTestPing(scenario = 'normal', amplitude = 0.25, frequency = 180.0, rpm = 2985.0) {
-    const res = await fetch(`${API_BASE}/gateway/ble/test-ping`, {
-      method: 'POST',
-      headers: getHeaders(),
-      body: JSON.stringify({
-        gateway_id: 'gw-ble-01',
-        device_mac: 'AC:23:3F:88:D1:05',
-        station_id: 'station-A',
-        test_scenario: scenario,
-        amplitude,
-        frequency,
-        motor_rpm: rpm,
-      }),
-    });
+  async getBleLiveStream() {
+    const res = await fetch(`${API_BASE}/gateway/ble/live-stream`, { headers: getHeaders() });
+    if (!res.ok) return null;
     return res.json();
   },
 
@@ -633,6 +679,52 @@ export const api = {
         vendor_type: vendorType || 'GenericREST',
       }),
     });
+    return res.json();
+  },
+
+  async getBleTelemetryLatest(deviceId?: string | string[]) {
+    let url = `${API_BASE}/gateway/ble/telemetry/latest`;
+    if (deviceId) {
+      if (Array.isArray(deviceId)) {
+        const validIds = deviceId.filter((id) => id && id !== 'all');
+        if (validIds.length > 0) {
+          url += `?device_id=${encodeURIComponent(validIds.join(','))}`;
+        }
+      } else if (deviceId !== 'all') {
+        url += `?device_id=${encodeURIComponent(deviceId)}`;
+      }
+    }
+    const res = await fetch(url, { headers: getHeaders() });
+    if (!res.ok) throw new Error('Failed to fetch latest BLE telemetry');
+    return res.json();
+  },
+
+  async getBleTelemetryHistory(limit: number = 30, deviceId?: string | string[]) {
+    let url = `${API_BASE}/gateway/ble/telemetry/history?limit=${limit}`;
+    if (deviceId) {
+      if (Array.isArray(deviceId)) {
+        const validIds = deviceId.filter((id) => id && id !== 'all');
+        if (validIds.length > 0) {
+          url += `&device_id=${encodeURIComponent(validIds.join(','))}`;
+        }
+      } else if (deviceId !== 'all') {
+        url += `&device_id=${encodeURIComponent(deviceId)}`;
+      }
+    }
+    const res = await fetch(url, { headers: getHeaders() });
+    if (!res.ok) throw new Error('Failed to fetch BLE telemetry history');
+    return res.json();
+  },
+
+  async getDiscoveredBleDevices() {
+    const res = await fetch(`${API_BASE}/gateway/ble/devices`, { headers: getHeaders() });
+    if (!res.ok) return { total_devices_coming: 0, total_ble_gateways: 0, devices: [], gateways: [] };
+    return res.json();
+  },
+
+  async getBleTelemetryStream() {
+    const res = await fetch(`${API_BASE}/gateway/ble/telemetry`, { headers: getHeaders() });
+    if (!res.ok) throw new Error('Failed to fetch BLE telemetry base stream');
     return res.json();
   },
 

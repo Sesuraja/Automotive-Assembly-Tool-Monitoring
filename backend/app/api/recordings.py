@@ -19,9 +19,18 @@ from backend.app.models.schema import (
     MLModelRecord,
     User
 )
-from simulator.virtual_rig import simulator_rig
 
 router = APIRouter(prefix="/recordings", tags=["Recordings"])
+
+# In-memory buffer for capturing live telemetry from real API host
+_is_recording: bool = False
+_recording_label: str = "normal"
+_live_recording_buffer: List[Dict[str, Any]] = []
+
+def record_live_telemetry_frame(frame: Dict[str, Any]):
+    global _live_recording_buffer, _is_recording
+    if _is_recording and isinstance(frame, dict):
+        _live_recording_buffer.append(frame)
 
 # ===========================================================================
 # PYDANTIC SCHEMAS FOR RECORDING & DATABASE EDITING
@@ -69,30 +78,23 @@ def list_recordings(db: Session = Depends(get_db)):
 
 @router.post("/start")
 def start_recording(label: str = "normal", name: str = "Session Recording"):
-    """Starts capturing raw high-rate telemetry into active buffer."""
-    simulator_rig.start_recording(label=label)
+    """Starts capturing live telemetry from real API host URL."""
+    global _is_recording, _recording_label, _live_recording_buffer
+    _live_recording_buffer.clear()
+    _recording_label = label
+    _is_recording = True
     return {"status": "recording_started", "label": label, "name": name}
 
 @router.post("/stop")
 def stop_recording(name: str = "Recorded Session", db: Session = Depends(get_db)):
     """Stops capturing and persists session metadata to DB and JSON file."""
-    data = simulator_rig.stop_recording()
-    if not data:
-        # Create a sample buffer if simulator was idle
-        from backend.app.core.feature_extractor import extract_features, features_to_vector
-        for _ in range(50):
-            w = simulator_rig.generate_window()
-            f, _ = extract_features(w, 1000)
-            data.append({
-                "ts": datetime.utcnow().isoformat(),
-                "seq": 100,
-                "label": simulator_rig.recording_label,
-                "features": f,
-                "features_vector": features_to_vector(f).tolist()
-            })
+    global _is_recording, _recording_label, _live_recording_buffer
+    _is_recording = False
+    data = list(_live_recording_buffer)
+    active_label = _recording_label
 
     rec_id = f"rec_{uuid.uuid4().hex[:8]}"
-    filename = f"{rec_id}_{simulator_rig.recording_label}.json"
+    filename = f"{rec_id}_{active_label}.json"
     file_path = os.path.join(settings.RECORDINGS_DIR, filename)
     
     with open(file_path, "w") as f:
@@ -101,7 +103,7 @@ def stop_recording(name: str = "Recorded Session", db: Session = Depends(get_db)
     rec = Recording(
         id=rec_id,
         name=name,
-        label=simulator_rig.recording_label,
+        label=active_label,
         sample_count=len(data),
         duration_sec=round(len(data) * 0.1, 1),
         file_path=file_path,
@@ -114,9 +116,8 @@ def stop_recording(name: str = "Recorded Session", db: Session = Depends(get_db)
         "status": "recording_saved",
         "id": rec_id,
         "name": name,
-        "label": rec.label,
-        "sample_count": rec.sample_count,
-        "duration_sec": rec.duration_sec,
+        "label": active_label,
+        "sample_count": len(data),
         "file_path": file_path
     }
 

@@ -49,11 +49,19 @@ class Settings(BaseSettings):
     # Vendor API Base & BLE Gateway Integration Settings
     VENDOR_API_BASE_URL: str = os.getenv(
         "VENDOR_API_BASE_URL",
-        "https://ais-dev-xzxljhsxlkzopqgvxgcwvc-509615976446.asia-southeast1.run.app"
+        "https://gateway.apertureventurestudio.com"
     )
     VENDOR_BLE_GATEWAY_URL: Optional[str] = os.getenv(
         "VENDOR_BLE_GATEWAY_URL",
-        f"{os.getenv('VENDOR_API_BASE_URL', 'https://ais-dev-xzxljhsxlkzopqgvxgcwvc-509615976446.asia-southeast1.run.app').rstrip('/')}/api/vibration/live"
+        "https://gateway.apertureventurestudio.com/api/v1/gateway/ble/telemetry/latest"
+    )
+    VENDOR_BLE_GATEWAY_HISTORY_URL: Optional[str] = os.getenv(
+        "VENDOR_BLE_GATEWAY_HISTORY_URL",
+        "https://gateway.apertureventurestudio.com/api/v1/gateway/ble/telemetry/history"
+    )
+    VENDOR_BLE_GATEWAY_STREAM_URL: Optional[str] = os.getenv(
+        "VENDOR_BLE_GATEWAY_STREAM_URL",
+        "https://gateway.apertureventurestudio.com/api/v1/gateway/ble/telemetry/"
     )
     VENDOR_BLE_GATEWAY_API_KEY: Optional[str] = os.getenv("VENDOR_BLE_GATEWAY_API_KEY", "")
     VENDOR_BLE_GATEWAY_TYPE: str = os.getenv("VENDOR_BLE_GATEWAY_TYPE", "GenericREST") # Cassia, Minew, Nordic, Teltonika, GenericREST

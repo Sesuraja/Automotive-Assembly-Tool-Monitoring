@@ -21,7 +21,7 @@ def main():
 
     # 1. Load and print environment info
     env_file = ROOT_DIR / ".env"
-    vendor_url = "https://ais-dev-xzxljhsxlkzopqgvxgcwvc-509615976446.asia-southeast1.run.app"
+    vendor_url = "https://gateway.apertureventurestudio.com"
     if env_file.exists():
         with open(env_file, "r") as f:
             for line in f:
@@ -78,13 +78,18 @@ def main():
     signal.signal(signal.SIGINT, shutdown)
     signal.signal(signal.SIGTERM, shutdown)
 
+    reported_exits = set()
     try:
         while True:
             time.sleep(1)
-            for p in processes:
-                if p.poll() is not None:
-                    # One of the processes exited
-                    pass
+            for i, p in enumerate(processes):
+                exit_code = p.poll()
+                if exit_code is not None and exit_code != 0 and i not in reported_exits:
+                    reported_exits.add(i)
+                    proc_name = "Backend (uvicorn)" if i == 0 else "Frontend (vite)"
+                    print(f"\n[!] Notice: {proc_name} process exited with code {exit_code}.")
+                    if exit_code == 3 and i == 0:
+                        print("[!] Port 8000 is likely already occupied by an existing process. Stop existing instance or kill port 8000.")
     except KeyboardInterrupt:
         shutdown(None, None)
 

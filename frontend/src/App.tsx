@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Routes, Route, Navigate, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import type {
   LiveTelemetry,
@@ -36,6 +36,8 @@ import {
 
 export const App: React.FC = () => {
   const { settings, formatTime } = useAppSettings();
+  const settingsRef = useRef(settings);
+  settingsRef.current = settings;
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -93,9 +95,23 @@ export const App: React.FC = () => {
     refreshBackendData();
 
     let lastWsPacketTime = 0;
+    let lastFilteredPacketTime = 0;
 
     // Subscribe to WebSocket telemetry stream
     const unsubMsg = liveWs.onMessage((data) => {
+      // If hardware filter is active, prefer packets for selected devices
+      const activeFilter = settingsRef.current.selectedDeviceIds || [];
+      const hasFilter = activeFilter.length > 0;
+      const matchesFilter = !hasFilter || (data.device_id && activeFilter.includes(data.device_id));
+
+      if (matchesFilter) {
+        lastFilteredPacketTime = Date.now();
+      } else if (hasFilter && lastFilteredPacketTime > 0 && Date.now() - lastFilteredPacketTime < 3000) {
+        // While active filtered device is sending packets within 3s, drop other devices
+        return;
+      }
+      // If matches filter OR filtered device hasn't transmitted in >3s, display live telemetry!
+
       lastWsPacketTime = Date.now();
       setLatestTelemetry(data);
       setPacketCount((p) => p + 1);
@@ -143,62 +159,62 @@ export const App: React.FC = () => {
         if (lastWsPacketTime > 0 && Date.now() - lastWsPacketTime < 2500) {
           return;
         }
-        const reading = await api.getLatestReading();
+        const reading = await api.getLatestReading(settingsRef.current.selectedDeviceIds);
         if (reading && (lastWsPacketTime === 0 || Date.now() - lastWsPacketTime >= 2500)) {
+          const activeFilter = settingsRef.current.selectedDeviceIds || [];
+          const hasFilter = activeFilter.length > 0;
+          const matchesFilter = !hasFilter || (reading.device_id && activeFilter.includes(reading.device_id));
+
+          if (!matchesFilter && hasFilter && lastFilteredPacketTime > 0 && Date.now() - lastFilteredPacketTime < 3000) {
+            return;
+          }
+          if (matchesFilter) {
+            lastFilteredPacketTime = Date.now();
+          }
+
           const timeStr = formatTime(reading.timestamp || Date.now());
-          const rmsVal = Number(reading.rms_g ?? reading.rms ?? 0.45);
-          const peakVal = Number(reading.peak_g ?? reading.peak ?? (rmsVal * 1.414));
+          const rmsVal = Number(reading.rms_g ?? reading.rms ?? reading.features?.rms ?? 0);
+          const peakVal = Number(reading.peak_g ?? reading.peak ?? reading.features?.peak ?? 0);
           const isOff = reading.state === 'STOPPED' || reading.status === 'OFF' || reading.operational_status === 'OFF' || reading.motor_status === 'OFF';
           const isSlow = reading.state === 'REDUCED_SPEED' || reading.status === 'SLOW' || reading.operational_status === 'SLOW' || reading.motor_status === 'SLOW';
           const stStr = isOff ? 'STOPPED' : isSlow ? 'REDUCED_SPEED' : (reading.state || 'NORMAL');
           const lightStr = isOff ? 'RED' : isSlow ? 'AMBER' : (reading.indicator_light || 'GREEN');
           const cmdPct = isOff ? 0 : isSlow ? 50 : (reading.commanded_speed_pct ?? 100);
-          const actualRpm = isOff ? 0 : Number(reading.measured_rpm ?? 12000);
+          const configuredRpm = Number(settings.motorRatedRpm || settings.motorMaxRpm || 1500);
+          const rawRpm = Number(reading.measured_rpm ?? (isOff ? 0 : configuredRpm));
+          const actualRpm = isOff ? 0 : isSlow ? Math.round(rawRpm * 0.5) : rawRpm;
 
           setLatestTelemetry((prev) => {
             if (prev && lastWsPacketTime > 0 && Date.now() - lastWsPacketTime < 2500) return prev;
             return {
-              device_id: 'AC:23:3F:88:D1:05',
+              device_id: reading.device_id || '',
               station_id: settings.stationId,
               ts: reading.timestamp || new Date().toISOString(),
-              seq: Math.floor(Date.now() / 1000),
+              seq: reading.seq ?? Math.floor(Date.now() / 1000),
               state: stStr as StationState,
               indicator_light: lightStr as IndicatorLightColor,
               commanded_speed_pct: cmdPct,
               measured_rpm: actualRpm,
-              current_amps: isOff ? 0 : Number(reading.current_amps ?? reading.current_a ?? reading.current ?? 1.64),
+              current_amps: isOff ? 0 : Number(reading.current_amps ?? reading.current_a ?? reading.current ?? 0),
               features: {
                 rms: rmsVal,
                 peak: peakVal,
-                peak_to_peak: peakVal * 1.5,
-                crest_factor: Number(reading.crest_factor ?? 1.414),
-                kurtosis: Number(reading.kurtosis ?? 0),
-                dominant_freq: 333.3,
+                peak_to_peak: Number(reading.features?.peak_to_peak ?? (peakVal * 1.5)),
+                crest_factor: Number(reading.crest_factor ?? reading.features?.crest_factor ?? (rmsVal > 0 && peakVal > 0 ? peakVal / rmsVal : 0)),
+                kurtosis: Number(reading.kurtosis ?? reading.features?.kurtosis ?? 0),
+                dominant_freq: Number(reading.dominant_freq ?? reading.features?.dominant_freq ?? 0),
               },
-              raw_anomaly_score: reading.raw_anomaly_score ?? reading.smoothed_anomaly_score ?? reading.anomaly_score ?? (isOff ? 0.0 : Number((actualRpm / (settings.motorMaxRpm || 12000) * 0.26).toFixed(3))),
-              smoothed_anomaly_score: reading.smoothed_anomaly_score ?? reading.anomaly_score ?? reading.raw_anomaly_score ?? (isOff ? 0.0 : Number((actualRpm / (settings.motorMaxRpm || 12000) * 0.26).toFixed(3))),
+              raw_anomaly_score: Number(reading.raw_anomaly_score ?? reading.smoothed_anomaly_score ?? reading.anomaly_score ?? 0.0),
+              smoothed_anomaly_score: Number(reading.smoothed_anomaly_score ?? reading.anomaly_score ?? reading.raw_anomaly_score ?? 0.0),
               warn_threshold: reading.warn_threshold ?? prev?.warn_threshold ?? settings.warnThreshold ?? 0.45,
               critical_threshold: reading.critical_threshold ?? prev?.critical_threshold ?? settings.criticalThreshold ?? 0.70,
-              last_decision_reason: reading.last_decision_reason || `Remote Host Decision: ${stStr} nominal operation`,
+              last_decision_reason: reading.last_decision_reason || `Aperture BLE Gateway: ${stStr} operational state`,
               layer_caused: reading.layer_caused || 'NONE',
-              battery_pct: Math.round(((reading.vbatt ?? 3020) / 3300) * 100),
-              rssi: -56,
-              fft_spectrum: reading.fft_spectrum || [
-                { freq: 50, magnitude: rmsVal * 0.2 },
-                { freq: 100, magnitude: rmsVal * 0.35 },
-                { freq: 150, magnitude: rmsVal * 0.15 },
-                { freq: 250, magnitude: rmsVal * 0.1 },
-                { freq: 333.3, magnitude: rmsVal * 0.8 },
-                { freq: 400, magnitude: rmsVal * 0.05 },
-              ],
+              battery_pct: Number(reading.battery_pct ?? (reading.vbatt ? Math.round((reading.vbatt / 3300) * 100) : 0)),
+              rssi: Number(reading.rssi ?? 0),
+              fft_spectrum: reading.fft_spectrum || [],
               latest_trip_analysis: reading.latest_trip_analysis ?? prev?.latest_trip_analysis ?? null,
-              ai_health: reading.ai_health || {
-                health_index_pct: stStr === 'NORMAL' ? 92.5 : 45.0,
-                stage: stStr === 'NORMAL' ? 'OPTIMAL_HEALTH' : 'DEGRADED',
-                stage_color: stStr === 'NORMAL' ? '#10b981' : '#ef4444',
-                estimated_cycles_remaining: stStr === 'NORMAL' ? 14850 : 2100,
-                diagnostic_note: stStr === 'NORMAL' ? 'Optimal kinematic stability. Spindle vibration nominal with clean harmonics.' : 'Safety interlock triggered.',
-              },
+              ai_health: reading.ai_health || null,
             };
           });
 
@@ -239,6 +255,7 @@ export const App: React.FC = () => {
   // Reset Station Action (Mandatory Explicit Reset)
   const handleReset = async () => {
     setIsActionLoading(true);
+    const targetRpm = Number(settings.motorRatedRpm || settings.motorMaxRpm || 1500);
     setLatestTelemetry((prev) =>
       prev
         ? {
@@ -246,16 +263,16 @@ export const App: React.FC = () => {
             state: 'NORMAL',
             indicator_light: 'GREEN',
             commanded_speed_pct: 100,
-            measured_rpm: 12000,
+            measured_rpm: targetRpm,
             last_decision_reason: `Mandatory reset cleared by ${currentUsername}. Restored to NORMAL.`,
             layer_caused: 'MANUAL_RESET',
           }
         : null
     );
     try {
-      await api.resetStation(settings.stationId || 'station-A', currentUsername, 'Administrator manual inspection cleared');
+      await api.resetStation(settings.stationId || 'station-A', currentUsername, 'Administrator manual inspection cleared', targetRpm);
       try {
-        await api.commandMotor('RESET', 12000, settings.stationId || 'station-A');
+        await api.commandMotor('RESET', targetRpm, settings.stationId || 'station-A');
       } catch (_) {}
       await refreshBackendData();
     } catch (e: any) {
@@ -482,44 +499,46 @@ export const App: React.FC = () => {
 
         {/* Dedicated Page Router Viewport */}
         <main className="main-viewport">
-          <Routes>
-            <Route path="/" element={<Navigate to="/live" replace />} />
-            <Route
-              path="/live"
-              element={
-                <LiveView
-                  telemetry={latestTelemetry}
-                  historyRms={historyRms}
-                  historySpeed={historySpeed}
-                  events={events}
-                  onReset={handleReset}
-                  onEmergencyStop={handleEmergencyStop}
-                  isActionLoading={isActionLoading}
-                />
-              }
-            />
-            <Route path="/gateway" element={<BleGatewayView />} />
-            <Route
-              path="/simulator"
-              element={<SimulatorDeck simState={simState} telemetry={latestTelemetry} onRefresh={refreshBackendData} />}
-            />
-            <Route path="/models" element={<Navigate to="/settings" replace />} />
-            <Route path="/recordings" element={<RecordingsView recordings={recordings} />} />
-            <Route path="/history" element={<HistoryView />} />
-            <Route path="/audit" element={<AuditView />} />
-            <Route
-              path="/settings"
-              element={
-                <SettingsPage
-                  models={models}
-                  recordings={recordings}
-                  currentUserRole={currentUserRole}
-                  onRefresh={refreshBackendData}
-                />
-              }
-            />
-            <Route path="*" element={<Navigate to="/live" replace />} />
-          </Routes>
+          <div key={location.pathname} className="page-enter-transition" style={{ width: '100%', minHeight: '100%' }}>
+            <Routes location={location}>
+              <Route path="/" element={<Navigate to="/live" replace />} />
+              <Route
+                path="/live"
+                element={
+                  <LiveView
+                    telemetry={latestTelemetry}
+                    historyRms={historyRms}
+                    historySpeed={historySpeed}
+                    events={events}
+                    onReset={handleReset}
+                    onEmergencyStop={handleEmergencyStop}
+                    isActionLoading={isActionLoading}
+                  />
+                }
+              />
+              <Route path="/gateway" element={<BleGatewayView />} />
+              <Route
+                path="/simulator"
+                element={<SimulatorDeck simState={simState} telemetry={latestTelemetry} onRefresh={refreshBackendData} />}
+              />
+              <Route path="/models" element={<Navigate to="/settings" replace />} />
+              <Route path="/recordings" element={<RecordingsView recordings={recordings} />} />
+              <Route path="/history" element={<HistoryView />} />
+              <Route path="/audit" element={<AuditView />} />
+              <Route
+                path="/settings"
+                element={
+                  <SettingsPage
+                    models={models}
+                    recordings={recordings}
+                    currentUserRole={currentUserRole}
+                    onRefresh={refreshBackendData}
+                  />
+                }
+              />
+              <Route path="*" element={<Navigate to="/live" replace />} />
+            </Routes>
+          </div>
         </main>
       </div>
 

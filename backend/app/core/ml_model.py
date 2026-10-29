@@ -214,7 +214,7 @@ class AnomalyModelWrapper:
         # Dynamic Speed-Aware Normalization:
         # Machine vibration energy scales with spindle rotational frequency (ISO 10816/20816)
         # e.g., 1500 RPM angle tool vs 3200 RPM nutrunner vs 6000 RPM spindle vs 20000 RPM router
-        target_rpm = float(rated_rpm or operating_rpm or 1500.0)
+        target_rpm = float(operating_rpm if (operating_rpm and operating_rpm > 50.0) else (rated_rpm or 1500.0))
         effective_rpm = max(500.0, target_rpm)
         speed_factor = float(np.sqrt(effective_rpm / 1500.0))
 
@@ -243,7 +243,7 @@ class AnomalyModelWrapper:
         nominal_rms_limit = 0.22 * speed_factor
         nominal_peak_limit = nominal_rms_limit * 2.3
 
-        if rms_val <= nominal_rms_limit and peak_val <= nominal_peak_limit:
+        if rms_val <= nominal_rms_limit and peak_val <= (nominal_peak_limit * 1.15):
             nominal_cap = max(0.02, min(0.20, (rms_val / max(1e-4, nominal_rms_limit)) * 0.20))
             raw_score = min(raw_score, nominal_cap)
 

@@ -1,3 +1,4 @@
+import math
 import json
 import asyncio
 from datetime import datetime, timezone
@@ -14,6 +15,25 @@ from backend.app.models.schema import (
     MotorTelemetry, EventRecord, Device, Station
 )
 from backend.app.core.ai_diagnostics import AIDiagnosticsEngine
+def _get_dynamic_rated_rpm(engine=None) -> float:
+    """Dynamically resolves rated RPM without hardcoded values."""
+    if engine is not None:
+        val = getattr(engine, "motor_rated_rpm", None) or getattr(engine, "motor_max_rpm", None)
+        if val is not None and float(val) > 0:
+            return float(val)
+    try:
+        from backend.app.models.schema import SystemSetting
+        from backend.app.database import SessionLocal
+        db = SessionLocal()
+        row = db.query(SystemSetting).filter(SystemSetting.key == "motor_rated_rpm").first()
+        if row and row.value:
+            val = float(row.value)
+            db.close()
+            return val
+        db.close()
+    except Exception:
+        pass
+    return 1500.0
 
 
 class DeviceTracker:
@@ -50,11 +70,25 @@ def prune_transient_telemetry(db: Session, max_rows: int = 3000):
 
 class IngestionService:
     latest_reading: Optional[Dict[str, Any]] = None
+    latest_readings_by_device: Dict[str, Dict[str, Any]] = {}
+    last_station_packet_time: Dict[str, datetime] = {}
+    link_loss_signaled: Dict[str, bool] = {}
+
+    @classmethod
+    def get_latest_reading_filtered(cls, selected_ids: Optional[List[str]] = None) -> Optional[Dict[str, Any]]:
+        """Returns the latest reading matching selected hardware device IDs, or the overall latest reading."""
+        if selected_ids:
+            for sid in selected_ids:
+                if sid in cls.latest_readings_by_device:
+                    return cls.latest_readings_by_device[sid]
+            if cls.latest_reading and cls.latest_reading.get("device_id") in selected_ids:
+                return cls.latest_reading
+        return cls.latest_reading
 
     @staticmethod
     async def process_payload(payload: IngestPayload, db: Optional[Session] = None) -> Dict[str, Any]:
         """
-        Processes an incoming vibration payload from either physical BLE node or Virtual Simulator.
+        Processes an incoming vibration payload from physical BLE gateway host.
         Hardware-agnostic data contract.
         """
         device_id = payload.device_id
@@ -108,7 +142,7 @@ class IngestionService:
         engine = get_decision_engine(station_id)
         prev_state = engine.state
         motor_data = payload.motor.model_dump() if payload.motor else None
-        target_rated_rpm = float(getattr(engine, "motor_rated_rpm", 1500.0))
+        target_rated_rpm = _get_dynamic_rated_rpm(engine)
         measured_rpm = float(payload.motor.measured_rpm) if payload.motor and payload.motor.measured_rpm > 10.0 else target_rated_rpm
 
         # 4. Model Inference & Scoring using Active Engine (Speed-Adaptive)
@@ -121,22 +155,36 @@ class IngestionService:
         )
         remote_host_score = float(payload.anomaly_score) if payload.anomaly_score is not None else None
 
-        # Dynamically calibrate anomaly score based on MAX TACHOMETER SCALE (RPM) from settings
-        max_tachometer_scale = getattr(engine, "motor_max_rpm", 20000.0)
-        scale_ratio = 12000.0 / max(1000.0, max_tachometer_scale)
+        rms_val = float(features_dict.get("rms", 0.0))
+        peak_val = float(features_dict.get("peak", 0.0))
+        is_tool_stopped = (engine.state == "STOPPED" or (payload.motor and payload.motor.measured_rpm < 15.0 and engine.state == "STOPPED"))
 
-        # When motor is STOPPED, the rotational vibration anomaly score must be 0.00
-        if engine.state == "STOPPED" or (payload.motor and payload.motor.measured_rpm < 15.0 and engine.state == "STOPPED"):
+        if is_tool_stopped:
             raw_score = 0.00
             smoothed_score = 0.00
-        elif remote_host_score is not None and remote_host_score >= 0.0:
-            # Dynamic calibration factor: adapts sensitivity to the configured tachometer scale
-            dynamic_val = remote_host_score * (0.85 + 0.25 * scale_ratio)
-            raw_score = round(max(0.01, min(0.99, dynamic_val)), 4)
-            smoothed_score = round(max(0.01, min(0.99, dynamic_val)), 4)
         else:
-            raw_score = round(raw_score, 4)
-            smoothed_score = round(smoothed_score, 4)
+            # Physical vibration anomaly scaling based on industrial vibration limits (ISO 10816/20816)
+            # Baseline nominal RMS: <= 0.25g. Moderate disturbance: 0.35g - 0.69g. Severe disturbance: >= 0.70g.
+            if rms_val >= 0.70 or peak_val >= 1.40 or raw_score >= engine.critical_threshold:
+                # Severe / Critical disturbance
+                v_score = 0.72 + min(0.26, max(0.0, (rms_val - 0.70) * 0.4))
+                raw_score = round(max(raw_score, v_score), 4)
+                smoothed_score = round(max(smoothed_score, v_score), 4)
+            elif rms_val >= 0.35 or peak_val >= 0.85 or raw_score >= engine.warn_threshold:
+                # Moderate warning disturbance (commanding speed reduction)
+                v_score = 0.48 + min(0.20, max(0.0, (rms_val - 0.35) * 0.5))
+                raw_score = round(max(raw_score, v_score), 4)
+                smoothed_score = round(max(smoothed_score, v_score), 4)
+            else:
+                # Nominal baseline vibration
+                nominal_score = max(0.02, min(0.22, (rms_val / 0.35) * 0.22))
+                raw_score = round(min(raw_score, nominal_score), 4)
+                smoothed_score = round(min(smoothed_score, nominal_score), 4)
+
+            # If remote host provided a higher score due to detected remote fault, respect it
+            if remote_host_score is not None and remote_host_score >= engine.warn_threshold:
+                raw_score = round(max(raw_score, remote_host_score), 4)
+                smoothed_score = round(max(smoothed_score, remote_host_score), 4)
 
         # Always evaluate safety limits and AI anomaly score
         state, indicator_light, commanded_speed_pct, reason, layer_caused = engine.evaluate(
@@ -298,10 +346,10 @@ class IngestionService:
                     )
                     db.add(db_event)
 
-                # AI Post-Trip Diagnostic & Root Cause Analysis when motor is STOPPED
+                # AI Diagnostic & Root Cause Forensics whenever motor is STOPPED or SLOWED DOWN
                 trip_analysis = None
                 if state == "STOPPED":
-                    if prev_state != "STOPPED" or engine.latest_trip_analysis is None:
+                    if prev_state != "STOPPED" or engine.latest_trip_analysis is None or engine.latest_trip_analysis.get("severity") != "CRITICAL":
                         trip_analysis = AIDiagnosticsEngine.analyze_motor_stop(
                             station_id=station_id,
                             trip_reason=reason,
@@ -318,7 +366,25 @@ class IngestionService:
                         engine.latest_trip_analysis = trip_analysis
                     else:
                         trip_analysis = engine.latest_trip_analysis
-                elif prev_state == "STOPPED" and state != "STOPPED":
+                elif state == "REDUCED_SPEED":
+                    if prev_state != "REDUCED_SPEED" or engine.latest_trip_analysis is None:
+                        trip_analysis = AIDiagnosticsEngine.analyze_motor_slowdown(
+                            station_id=station_id,
+                            slowdown_reason=reason,
+                            layer_caused=layer_caused,
+                            features=features_dict,
+                            motor=motor_data,
+                            anomaly_score=smoothed_score,
+                            warn_threshold=engine.warn_threshold,
+                            critical_threshold=engine.critical_threshold,
+                            model_version=active_model.version,
+                            device_id=device_id,
+                            db=db
+                        )
+                        engine.latest_trip_analysis = trip_analysis
+                    else:
+                        trip_analysis = engine.latest_trip_analysis
+                elif prev_state in ["STOPPED", "REDUCED_SPEED"] and state == "NORMAL":
                     engine.latest_trip_analysis = None
 
                 # Update Station state in DB
@@ -341,13 +407,8 @@ class IngestionService:
                 # Log error but never crash ingestion
                 print(f"[Ingestion DB Error] {e}")
 
-        # Actuate simulator rig and ensure motor halts or restarts
-        from simulator.virtual_rig import simulator_rig
+        # Forward motor actuation commands to vendor API
         if state == "STOPPED":
-            simulator_rig.motor.is_stalled = True
-            simulator_rig.motor.commanded_pct = 0.0
-            simulator_rig.motor.current_rpm = 0.0
-            simulator_rig.apply_backend_command(0.0, "RED", "STOPPED")
             # Forward STOP command to vendor API if state newly transitioned to STOPPED
             if prev_state != "STOPPED":
                 try:
@@ -356,51 +417,54 @@ class IngestionService:
                 except Exception as e:
                     print(f"[Vendor API Forwarding Notice] {e}")
         elif state == "REDUCED_SPEED":
-            simulator_rig.motor.is_stalled = False
-            simulator_rig.apply_backend_command(commanded_speed_pct, indicator_light, state)
             # Forward REDUCE_SPEED command to vendor API when entering reduced speed
             if prev_state != "REDUCED_SPEED":
                 try:
                     from backend.app.api.vendor_motor_api import _forward_command_to_vendor
-                    rated_ref = max(100.0, getattr(simulator_rig.motor, "rated_rpm", getattr(simulator_rig.motor, "max_rpm", 1500.0)))
+                    rated_ref = max(100.0, _get_dynamic_rated_rpm(engine))
                     target_r = rated_ref * 0.5
                     asyncio.create_task(_forward_command_to_vendor("REDUCE_SPEED", target_r))
                 except Exception as e:
                     print(f"[Vendor API Forwarding Notice] {e}")
         else:
-            simulator_rig.motor.is_stalled = False
-            simulator_rig.apply_backend_command(commanded_speed_pct, indicator_light, state)
             # Only forward RESET to vendor API when an explicit operator reset occurred
             if layer_caused in ["MANUAL_RESET", "API_RESTART"]:
                 try:
                     from backend.app.api.vendor_motor_api import _forward_command_to_vendor
-                    rated_ref = max(100.0, getattr(simulator_rig.motor, "rated_rpm", getattr(simulator_rig.motor, "max_rpm", 1500.0)))
+                    rated_ref = max(100.0, _get_dynamic_rated_rpm(engine))
                     asyncio.create_task(_forward_command_to_vendor("RESET", rated_ref))
                 except Exception as e:
                     print(f"[Vendor API Restart Forwarding Notice] {e}")
 
-        # Real-time AI Tool Health Prognostics
+        is_stopped = (state == "STOPPED")
+        rated_ref = max(100.0, _get_dynamic_rated_rpm(engine))
+        actual_cmd_pct = 0.0 if is_stopped else commanded_speed_pct
+        if is_stopped:
+            actual_measured_rpm = 0.0
+        elif state == "REDUCED_SPEED":
+            base_rpm = payload.motor.measured_rpm if (payload.motor and payload.motor.measured_rpm > 100.0) else rated_ref
+            actual_measured_rpm = round(base_rpm * (commanded_speed_pct / 100.0), 1)
+        else:
+            actual_measured_rpm = (
+                payload.motor.measured_rpm if (payload.motor and payload.motor.measured_rpm > 0.0) else (
+                    (commanded_speed_pct / 100.0) * rated_ref
+                )
+            )
+        actual_current_amps = 0.0 if is_stopped else (
+            round((payload.motor.current_amps if payload.motor else 4.2) * (commanded_speed_pct / 100.0), 2)
+        )
+        actual_motor_status = "OFF" if is_stopped else ("SLOW" if state == "REDUCED_SPEED" else "RUNNING")
+
+        # Real-time AI Tool Health Prognostics (Speed-Aware)
         ai_health = AIDiagnosticsEngine.calculate_tool_health_index(
             features=features_dict,
             anomaly_score=smoothed_score,
-            state=state
+            state=state,
+            operating_rpm=actual_measured_rpm if actual_measured_rpm > 50 else rated_ref,
+            rated_rpm=rated_ref
         )
-
-        is_stopped = (state == "STOPPED")
-        rated_ref = max(100.0, getattr(simulator_rig.motor, "rated_rpm", getattr(simulator_rig.motor, "max_rpm", 1500.0)))
-        actual_measured_rpm = 0.0 if is_stopped else (
-            payload.motor.measured_rpm if (payload.motor and payload.motor.measured_rpm > 0.0) else (
-                (commanded_speed_pct / 100.0) * rated_ref
-            )
-        )
-        actual_cmd_pct = 0.0 if is_stopped else commanded_speed_pct
-        actual_current_amps = 0.0 if is_stopped else (payload.motor.current_amps if payload.motor else 0.0)
-        actual_motor_status = "OFF" if is_stopped else ("SLOW" if state == "REDUCED_SPEED" else "RUNNING")
 
         feat_broadcast = vibration_features.model_dump()
-        if is_stopped:
-            feat_broadcast["rms"] = 0.005
-            feat_broadcast["peak"] = 0.008
 
         # 6. Real-time Live Broadcast to WebSockets
         broadcast_data = {
@@ -436,63 +500,89 @@ class IngestionService:
             "latest_trip_analysis": engine.latest_trip_analysis,
             "ai_health": ai_health
         }
+        IngestionService.last_station_packet_time[station_id] = now
+        IngestionService.link_loss_signaled[station_id] = False
         await live_hub.broadcast(broadcast_data)
         IngestionService.latest_reading = broadcast_data
+        IngestionService.latest_readings_by_device[payload.device_id] = broadcast_data
+        try:
+            from backend.app.api.recordings import record_live_telemetry_frame
+            record_live_telemetry_frame(broadcast_data)
+        except Exception:
+            pass
 
         # 7. Motor command feedback response sent back to simulator / BLE rig
         return {
             "status": "ok",
             "state": state,
-            "commanded_speed_pct": commanded_speed_pct,
+            "commanded_speed_pct": actual_cmd_pct,
+            "measured_rpm": actual_measured_rpm,
             "indicator_light": indicator_light,
+            "anomaly_score": smoothed_score,
+            "raw_anomaly_score": raw_score,
+            "features": feat_broadcast,
             "reason": reason,
             "layer_caused": layer_caused
         }
 
     @staticmethod
-    async def trigger_link_loss_check(station_id: str = "station-A", timeout_sec: float = 1.0, db: Optional[Session] = None):
+    async def trigger_link_loss_check(station_id: str = "station-A", timeout_sec: float = 15.0, db: Optional[Session] = None):
         """
-        Watchdog checker for link lost state.
-        If no packet received within timeout, safe state action is triggered.
+        Watchdog checker for station link lost state.
+        If no packet is received from any active sensor on this station within timeout_sec,
+        a safe-state link loss alert is triggered.
         """
         now = datetime.utcnow()
-        for dev_id, tracker in _device_trackers.items():
-            if tracker.last_seen_time and (now - tracker.last_seen_time).total_seconds() > timeout_sec:
-                engine = get_decision_engine(station_id)
-                if engine.state != "STOPPED":
-                    state, light, speed, reason, layer = engine.evaluate(
-                        features={"rms": 0, "peak": 0},
-                        anomaly_score=0.0,
-                        link_lost=True
-                    )
-                    if db:
-                        ev = EventRecord(
-                            station_id=station_id,
-                            ts=now,
-                            event_type="LINK_LOST",
-                            details=f"Packet timeout exceeded {timeout_sec}s for device {dev_id}. Safe-state STOP commanded.",
-                            operator="Watchdog"
-                        )
-                        db.add(ev)
-                        db.commit()
-                        
-                    await live_hub.broadcast({
-                        "device_id": dev_id,
-                        "station_id": station_id,
-                        "ts": now.isoformat(),
-                        "seq": tracker.last_seq or 0,
-                        "state": state,
-                        "indicator_light": light,
-                        "commanded_speed_pct": speed,
-                        "measured_rpm": 0.0,
-                        "features": {"rms": 0.0, "peak": 0.0},
-                        "raw_anomaly_score": 0.0,
-                        "smoothed_anomaly_score": 0.0,
-                        "warn_threshold": engine.warn_threshold,
-                        "critical_threshold": engine.critical_threshold,
-                        "last_decision_reason": reason,
-                        "layer_caused": layer,
-                        "battery_pct": 0.0,
-                        "rssi": -100.0,
-                        "fft_spectrum": []
-                    })
+        last_seen = IngestionService.last_station_packet_time.get(station_id)
+
+        # If the station is actively receiving telemetry packets, the station link is 100% healthy!
+        if last_seen and (now - last_seen).total_seconds() <= timeout_sec:
+            IngestionService.link_loss_signaled[station_id] = False
+            return
+
+        # If link loss was already signaled for this station, do NOT continuously broadcast zero-packets every second
+        if IngestionService.link_loss_signaled.get(station_id, False):
+            return
+
+        IngestionService.link_loss_signaled[station_id] = True
+        engine = get_decision_engine(station_id)
+        if engine.state != "STOPPED":
+            state, light, speed, reason, layer = engine.evaluate(
+                features={"rms": 0, "peak": 0},
+                anomaly_score=0.0,
+                link_lost=True
+            )
+            if db:
+                ev = EventRecord(
+                    station_id=station_id,
+                    ts=now,
+                    event_type="LINK_LOST",
+                    details=f"Packet timeout exceeded {timeout_sec}s for station {station_id}. Safe-state STOP commanded.",
+                    operator="Watchdog"
+                )
+                db.add(ev)
+                db.commit()
+
+            active_dev_id = IngestionService.latest_reading.get("device_id", "GATEWAY_HUB") if IngestionService.latest_reading else "GATEWAY_HUB"
+            broadcast_packet = {
+                "device_id": active_dev_id,
+                "station_id": station_id,
+                "ts": now.isoformat(),
+                "seq": int(now.timestamp()),
+                "state": state,
+                "indicator_light": light,
+                "commanded_speed_pct": speed,
+                "measured_rpm": 0.0,
+                "features": {"rms": 0.0, "peak": 0.0, "dominant_freq": 0.0},
+                "raw_anomaly_score": 0.0,
+                "smoothed_anomaly_score": 0.0,
+                "warn_threshold": engine.warn_threshold,
+                "critical_threshold": engine.critical_threshold,
+                "last_decision_reason": reason,
+                "layer_caused": layer,
+                "battery_pct": 0.0,
+                "rssi": -100.0,
+                "fft_spectrum": []
+            }
+            await live_hub.broadcast(broadcast_packet)
+            IngestionService.latest_reading = broadcast_packet

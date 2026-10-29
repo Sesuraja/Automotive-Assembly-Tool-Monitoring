@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAppSettings } from '../../context/AppSettingsContext';
+import { SmoothNumber } from '../common/SmoothNumber';
 
 interface VibrationDataPoint {
   time: string;
@@ -28,6 +29,54 @@ export const VibrationChart: React.FC<VibrationChartProps> = ({
   const userScaleVal = maxScaleY ?? settings.vibrationMaxScaleG ?? 2.50;
   const samplesCount = sampleCount ?? settings.rollingSamplesCount ?? 60;
 
+  // Smoothly interpolated continuous display data (60fps fluid transition)
+  const [displayData, setDisplayData] = useState<VibrationDataPoint[]>(data);
+  const prevDataRef = useRef<VibrationDataPoint[]>(data);
+
+  useEffect(() => {
+    if (data.length === 0) {
+      setDisplayData([]);
+      prevDataRef.current = [];
+      return;
+    }
+
+    const prev = prevDataRef.current.length > 0 ? prevDataRef.current : data;
+    const target = data;
+    let animId: number;
+    const startTime = performance.now();
+    const duration = 650; // ms duration matching sampling cadence for seamless flow
+
+    const step = (now: number) => {
+      const elapsed = now - startTime;
+      const progress = Math.min(1, elapsed / duration);
+      // Fluid cubic ease-out
+      const ease = 1 - Math.pow(1 - progress, 3);
+
+      const interpolated: VibrationDataPoint[] = target.map((pt, idx) => {
+        // Find corresponding previous point or interpolate
+        const prevIdx = prev.length === target.length ? idx : Math.min(idx, prev.length - 1);
+        const p0 = prev[prevIdx] || pt;
+        return {
+          time: pt.time,
+          rms: p0.rms + (pt.rms - p0.rms) * ease,
+          peak: p0.peak + (pt.peak - p0.peak) * ease,
+        };
+      });
+
+      setDisplayData(interpolated);
+      prevDataRef.current = interpolated;
+
+      if (progress < 1) {
+        animId = requestAnimationFrame(step);
+      }
+    };
+
+    animId = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(animId);
+  }, [data]);
+
+  const activePoints = displayData.length > 0 ? displayData : data;
+
   const width = 640;
   const height = 220;
   const padding = { top: 20, right: 30, bottom: 30, left: 45 };
@@ -39,12 +88,12 @@ export const VibrationChart: React.FC<VibrationChartProps> = ({
   const maxVal = Math.max(
     limitVal * 1.15,
     userScaleVal,
-    ...(data.length > 0 ? data.map((d) => Math.max(d.peak, d.rms)) : [userScaleVal])
+    ...(activePoints.length > 0 ? activePoints.map((d) => Math.max(d.peak, d.rms)) : [userScaleVal])
   );
 
   const getX = (index: number) => {
-    if (data.length <= 1) return padding.left;
-    return padding.left + (index / (data.length - 1)) * plotWidth;
+    if (activePoints.length <= 1) return padding.left;
+    return padding.left + (index / (activePoints.length - 1)) * plotWidth;
   };
 
   const getY = (val: number) => {
@@ -54,18 +103,18 @@ export const VibrationChart: React.FC<VibrationChartProps> = ({
 
   // Generate SVG paths
   const rmsPath =
-    data.length > 0
-      ? data.map((p, i) => `${i === 0 ? 'M' : 'L'} ${getX(i)} ${getY(p.rms)}`).join(' ')
+    activePoints.length > 0
+      ? activePoints.map((p, i) => `${i === 0 ? 'M' : 'L'} ${getX(i)} ${getY(p.rms)}`).join(' ')
       : '';
 
   const peakPath =
-    data.length > 0
-      ? data.map((p, i) => `${i === 0 ? 'M' : 'L'} ${getX(i)} ${getY(p.peak)}`).join(' ')
+    activePoints.length > 0
+      ? activePoints.map((p, i) => `${i === 0 ? 'M' : 'L'} ${getX(i)} ${getY(p.peak)}`).join(' ')
       : '';
 
   const rmsArea =
-    data.length > 0
-      ? `${rmsPath} L ${getX(data.length - 1)} ${padding.top + plotHeight} L ${padding.left} ${padding.top + plotHeight} Z`
+    activePoints.length > 0
+      ? `${rmsPath} L ${getX(activePoints.length - 1)} ${padding.top + plotHeight} L ${padding.left} ${padding.top + plotHeight} Z`
       : '';
 
   const hardLimitY = getY(limitVal);
@@ -93,11 +142,11 @@ export const VibrationChart: React.FC<VibrationChartProps> = ({
         <div style={{ display: 'flex', gap: '0.85rem', fontSize: '0.75rem', fontWeight: 600, alignItems: 'center' }}>
           <span style={{ color: '#0284c7', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
             <span style={{ width: 10, height: 3, background: '#0284c7', display: 'inline-block' }}></span>
-            RMS: {currentPoint ? `${currentPoint.rms.toFixed(3)}g` : '—'}
+            RMS: {currentPoint ? <SmoothNumber value={currentPoint.rms} decimals={3} suffix="g" /> : '—'}
           </span>
           <span style={{ color: '#8b5cf6', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
             <span style={{ width: 10, height: 2, background: '#8b5cf6', display: 'inline-block' }}></span>
-            Peak: {currentPoint ? `${currentPoint.peak.toFixed(3)}g` : '—'}
+            Peak: {currentPoint ? <SmoothNumber value={currentPoint.peak} decimals={3} suffix="g" /> : '—'}
           </span>
           <span style={{ color: '#ef4444', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
             <span style={{ width: 10, height: 2, borderTop: '2px dashed #ef4444', display: 'inline-block' }}></span>

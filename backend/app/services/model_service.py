@@ -8,7 +8,6 @@ from backend.app.config import settings
 from backend.app.core.ml_model import AnomalyModelWrapper, set_active_model, get_active_model
 from backend.app.core.decision_engine import get_decision_engine
 from backend.app.models.schema import MLModelRecord, Recording
-from simulator.virtual_rig import simulator_rig
 from backend.app.core.feature_extractor import extract_features, features_to_vector
 
 class ModelService:
@@ -49,24 +48,24 @@ class ModelService:
                             if "features_vector" in item:
                                 X_dist_list.append(item["features_vector"])
 
-        # If recordings are empty, generate directly from simulator rig to avoid feature drift
-        if len(X_norm_list) < 20:
-            sim_state_save = simulator_rig.scenario
-            simulator_rig.set_scenario("normal")
-            for _ in range(60):
-                w = simulator_rig.generate_window()
-                f, _ = extract_features(w, 1000)
-                X_norm_list.append(features_to_vector(f).tolist())
-            simulator_rig.set_scenario(sim_state_save)
+        if not X_norm_list:
+            # Check baseline recording file on disk
+            norm_file = os.path.join(settings.RECORDINGS_DIR, "rec_normal_baseline.json")
+            if os.path.exists(norm_file):
+                with open(norm_file, "r") as f:
+                    data = json.load(f)
+                    for item in data:
+                        if "features_vector" in item:
+                            X_norm_list.append(item["features_vector"])
 
-        if len(X_dist_list) < 20:
-            sim_state_save = simulator_rig.scenario
-            simulator_rig.set_scenario("disturbance_on", amplitude=0.85, freq=180.0)
-            for _ in range(50):
-                w = simulator_rig.generate_window()
-                f, _ = extract_features(w, 1000)
-                X_dist_list.append(features_to_vector(f).tolist())
-            simulator_rig.set_scenario(sim_state_save)
+        if not X_dist_list:
+            dist_file = os.path.join(settings.RECORDINGS_DIR, "rec_disturbed_baseline.json")
+            if os.path.exists(dist_file):
+                with open(dist_file, "r") as f:
+                    data = json.load(f)
+                    for item in data:
+                        if "features_vector" in item:
+                            X_dist_list.append(item["features_vector"])
 
         X_norm = np.array(X_norm_list, dtype=np.float64)
         X_dist = np.array(X_dist_list, dtype=np.float64)

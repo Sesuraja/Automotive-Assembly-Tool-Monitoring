@@ -52,7 +52,6 @@ import os
 import time
 from typing import Optional
 from backend.app.core.feature_extractor import extract_features, features_to_vector
-from simulator.virtual_rig import simulator_rig
 
 @router.post("/{version}/activate")
 def activate_model_version(

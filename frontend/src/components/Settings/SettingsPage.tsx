@@ -7,7 +7,6 @@ import {
   Clock,
   Building,
   Tag,
-  Radio,
   Upload,
   CheckCircle,
   RefreshCw,
@@ -41,12 +40,6 @@ const PRESET_TIMEZONES = [
   { id: 'Australia/Sydney', label: 'Australian Eastern Time (AEST)', offset: '+10:00' },
 ];
 
-const PRESET_STATIONS = [
-  { id: 'station-A', name: 'Station 4A - Multi-Spindle Angle Nutrunner' },
-  { id: 'station-B', name: 'Station 4B - Cylinder Head Torque Spindle' },
-  { id: 'station-C', name: 'Station 4C - Camshaft Fastening Rig' },
-  { id: 'station-D', name: 'Station 4D - Transmission Case Bolting Deck' },
-];
 
 const PRESET_LOGOS = [
   { id: 'aperture', label: 'Aperture Default HD', url: '/aperture-logo-hd.png' },
@@ -236,15 +229,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
     setAutoRestartEnabled(settings.autoRestartEnabled ?? false);
   }, [settings]);
 
-  // Handle station preset select
-  const handleStationSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const chosen = e.target.value;
-    setStationId(chosen);
-    const match = PRESET_STATIONS.find((s) => s.id === chosen);
-    if (match) {
-      setStationName(match.name);
-    }
-  };
 
   // Handle custom image upload
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1038,35 +1022,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                 </span>
               </div>
             </div>
-
-            {/* High-Speed Motor Presets */}
-            <div>
-              <label style={{ fontSize: '0.7rem', fontWeight: 700, color: '#94a3b8', display: 'block', marginBottom: '0.4rem' }}>
-                MOTOR TYPE PRESETS
-              </label>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
-                {[
-                  { label: 'Standard Angle Tool', max: 2000, rated: 1500, amps: 6.5 },
-                  { label: 'High-Speed Nutrunner', max: 4000, rated: 3200, amps: 12.0 },
-                  { label: 'Robotic Torque Spindle', max: 8000, rated: 6000, amps: 22.0 },
-                  { label: 'High-RPM Router/Mill', max: 25000, rated: 20000, amps: 40.0 },
-                ].map((p, i) => (
-                  <button
-                    key={i}
-                    type="button"
-                    onClick={() => {
-                      setMotorMaxRpm(p.max);
-                      setMotorRatedRpm(p.rated);
-                      setMotorRatedCurrentAmps(p.amps);
-                    }}
-                    className="filter-pill"
-                    style={{ fontSize: '0.75rem' }}
-                  >
-                    {p.label} ({p.rated} RPM)
-                  </button>
-                ))}
-              </div>
-            </div>
           </div>
         </div>
 
@@ -1281,10 +1236,10 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '0.75rem' }}>
             <div>
               <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#334155', letterSpacing: '0.05em' }}>
-                LIVE MOTOR API CONTROL TEST PANEL (STATION: {stationId})
+                LIVE MOTOR API CONTROL PANEL (STATION: {stationId})
               </div>
               <div style={{ fontSize: '0.72rem', color: '#64748b' }}>
-                Test immediate motor control commands via REST API endpoints (/api/v1/stations/{stationId}/motor/stop &amp; /restart).
+                Direct immediate motor control commands via REST API endpoints (/api/v1/stations/{stationId}/motor/stop &amp; /restart).
               </div>
             </div>
 
@@ -1473,85 +1428,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
           </div>
         </div>
 
-        {/* Section: Assembly Station Configuration & Enterprise Branding */}
+        {/* Section: Enterprise Branding */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-          
-          {/* Station Identifier */}
-          <div className="b2b-card">
-            <div className="b2b-card-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <Radio size={18} color="#0284c7" />
-              <span>Active Assembly Station Configuration</span>
-            </div>
-            <div className="b2b-card-subtitle">
-              Select or assign the station ID and display name monitored by this terminal.
-            </div>
-
-            <div style={{ marginTop: '1rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              <div>
-                <label style={{ fontSize: '0.75rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '0.35rem' }}>
-                  PRE-CONFIGURED ASSEMBLY STATIONS
-                </label>
-                <select
-                  value={stationId}
-                  onChange={handleStationSelect}
-                  style={{
-                    width: '100%',
-                    padding: '0.5rem',
-                    fontSize: '0.85rem',
-                    border: '1px solid #cbd5e1',
-                    borderRadius: 6,
-                    background: '#ffffff',
-                  }}
-                >
-                  {PRESET_STATIONS.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name} ({s.id})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: '0.75rem' }}>
-                <div>
-                  <label style={{ fontSize: '0.75rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '0.35rem' }}>
-                    STATION ID
-                  </label>
-                  <input
-                    type="text"
-                    value={stationId}
-                    onChange={(e) => setStationId(e.target.value)}
-                    style={{
-                      width: '100%',
-                      padding: '0.45rem 0.6rem',
-                      fontSize: '0.85rem',
-                      border: '1px solid #cbd5e1',
-                      borderRadius: 6,
-                      fontFamily: 'monospace',
-                      fontWeight: 600,
-                    }}
-                  />
-                </div>
-                <div>
-                  <label style={{ fontSize: '0.75rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '0.35rem' }}>
-                    STATION DISPLAY NAME
-                  </label>
-                  <input
-                    type="text"
-                    value={stationName}
-                    onChange={(e) => setStationName(e.target.value)}
-                    style={{
-                      width: '100%',
-                      padding: '0.45rem 0.6rem',
-                      fontSize: '0.85rem',
-                      border: '1px solid #cbd5e1',
-                      borderRadius: 6,
-                    }}
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-
           {/* Company & Brand Identity */}
           <div className="b2b-card">
             <div className="b2b-card-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>

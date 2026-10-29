@@ -91,7 +91,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
               margin: 0,
             }}
           >
-            {settings.brandName} &bull; Sign in with your enterprise credentials
+            Sign in with your enterprise credentials
           </p>
         </div>
 
@@ -203,8 +203,15 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
               />
               <span>Remember me</span>
             </label>
-            <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
-              Default: <code style={{ color: '#0284c7' }}>admin</code> / <code style={{ color: '#0284c7' }}>admin123</code>
+            <span
+              style={{ fontSize: '0.75rem', color: '#94a3b8', cursor: 'pointer' }}
+              title="Click to fill default credentials"
+              onClick={() => {
+                setUsername('admin');
+                setPassword('admin123');
+              }}
+            >
+              Default: <code style={{ color: '#0284c7', cursor: 'pointer' }}>admin</code> / <code style={{ color: '#0284c7', cursor: 'pointer' }}>admin123</code>
             </span>
           </div>
 

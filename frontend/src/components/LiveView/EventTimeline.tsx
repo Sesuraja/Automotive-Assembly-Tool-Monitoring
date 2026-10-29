@@ -36,7 +36,7 @@ export const EventTimeline: React.FC<EventTimelineProps> = ({ events: rawEvents 
             return (
               <div
                 key={ev.id || i}
-                className={`timeline-item ${isTrip ? 'TRIP' : isWarn ? 'SPEED_CHANGE' : isReset ? 'RESET' : ''}`}
+                className={`timeline-item smooth-row-entry ${isTrip ? 'TRIP' : isWarn ? 'SPEED_CHANGE' : isReset ? 'RESET' : ''}`}
               >
                 <div style={{ marginTop: '2px' }}>
                   {isTrip ? (

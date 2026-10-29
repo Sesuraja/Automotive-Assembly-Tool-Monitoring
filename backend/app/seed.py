@@ -7,7 +7,6 @@ from backend.app.models.schema import (
 )
 from backend.app.core.security import get_password_hash
 from backend.app.services.model_service import ModelService
-from simulator.virtual_rig import simulator_rig
 from backend.app.core.feature_extractor import extract_features, features_to_vector
 from backend.app.config import settings
 from backend.app.core.ml_model import AnomalyModelWrapper, set_active_model
@@ -52,12 +51,12 @@ def init_db_and_seed():
             db.add(station)
             db.flush()
 
-        device = db.query(Device).filter(Device.id == "AC:23:3F:88:D1:05").first()
+        device = db.query(Device).filter(Device.id == "304A2657BF44").first()
         if not device:
             device = Device(
-                id="AC:23:3F:88:D1:05",
+                id="304A2657BF44",
                 station_id=station.id,
-                name="KKM S5 Triaxial Vibration Sensor (AC:23:3F:88:D1:05)",
+                name="Aperture Gateway Telemetry Node (304A2657BF44)",
                 device_type="vibration_node",
                 api_key="ble-key-spindle-01-prod",
                 is_active=True,
@@ -71,7 +70,10 @@ def init_db_and_seed():
             ("admin", "admin@apex.auto", "admin123", "Admin"),
         ]
         for uname, email, pwd, role in users_to_seed:
-            existing = db.query(User).filter(User.username == uname).first()
+            from sqlalchemy import func
+            existing = db.query(User).filter(
+                (User.id == f"user_{uname}") | (func.lower(User.username) == uname.lower())
+            ).first()
             if not existing:
                 u = User(
                     id=f"user_{uname}",
@@ -89,117 +91,45 @@ def init_db_and_seed():
             usr.role = "Admin"
         db.commit()
 
-        # 3. Seed Initial Datasets / Recordings (Only if SEED_DEMO_DATA is explicitly true)
-        seed_demo_data = os.getenv("SEED_DEMO_DATA", "false").lower() in ("true", "1", "yes")
-        if seed_demo_data:
-            rec_norm = db.query(Recording).filter(Recording.id == "rec_normal_baseline").first()
-            if not rec_norm:
-                norm_file = os.path.join(settings.RECORDINGS_DIR, "rec_normal_baseline.json")
-                norm_samples = []
-                simulator_rig.set_scenario("normal")
-                for i in range(50):
-                    w = simulator_rig.generate_window()
-                    f, _ = extract_features(w, 1000)
-                    norm_samples.append({
-                        "seq": i,
-                        "label": "normal",
-                        "features": f,
-                        "features_vector": features_to_vector(f).tolist()
-                    })
-                with open(norm_file, "w") as f_out:
-                    json.dump(norm_samples, f_out, indent=2)
-
-                rec_norm = Recording(
-                    id="rec_normal_baseline",
-                    name="Baseline Steady-State Normal Operation",
-                    label="normal",
-                    sample_count=len(norm_samples),
-                    duration_sec=5.0,
-                    file_path=norm_file,
-                    created_at=datetime.utcnow()
+        # 3. Model Initialization (Check if active model exists or load baseline)
+        active_model = db.query(MLModelRecord).filter(MLModelRecord.active_flag == True).first()
+        if active_model:
+            try:
+                loaded_model = AnomalyModelWrapper.load(active_model.artifact_path)
+                set_active_model(loaded_model)
+                engine_inst = get_decision_engine()
+                thresh = active_model.thresholds or {}
+                engine_inst.update_thresholds(
+                    thresh.get("warn_threshold", settings.AI_WARN_THRESHOLD),
+                    thresh.get("critical_threshold", settings.AI_CRITICAL_THRESHOLD)
                 )
-                db.add(rec_norm)
-
-            rec_dist = db.query(Recording).filter(Recording.id == "rec_disturbed_baseline").first()
-            if not rec_dist:
-                dist_file = os.path.join(settings.RECORDINGS_DIR, "rec_disturbed_baseline.json")
-                dist_samples = []
-                simulator_rig.set_scenario("disturbance_on", amplitude=0.85, freq=180.0)
-                for i in range(40):
-                    w = simulator_rig.generate_window()
-                    f, _ = extract_features(w, 1000)
-                    dist_samples.append({
-                        "seq": i,
-                        "label": "disturbed",
-                        "features": f,
-                        "features_vector": features_to_vector(f).tolist()
-                    })
-                with open(dist_file, "w") as f_out:
-                    json.dump(dist_samples, f_out, indent=2)
-
-                rec_dist = Recording(
-                    id="rec_disturbed_baseline",
-                    name="Exciter Active 180Hz Resonance Anomaly",
-                    label="disturbed",
-                    sample_count=len(dist_samples),
-                    duration_sec=4.0,
-                    file_path=dist_file,
-                    created_at=datetime.utcnow()
-                )
-                db.add(rec_dist)
-                simulator_rig.set_scenario("normal")
-
-            # 4. Train Initial Baseline Model
-            base_model = db.query(MLModelRecord).filter(MLModelRecord.version == "v1.0.0-baseline").first()
-            if not base_model:
-                print("[Seed] Training baseline Isolation Forest model (v1.0.0-baseline)...")
-                ModelService.train_model(
-                    version="v1.0.0-baseline",
-                    model_type="IsolationForest",
-                    normal_recording_ids=["rec_normal_baseline"],
-                    disturbed_recording_ids=["rec_disturbed_baseline"],
-                    warn_threshold=0.45,
-                    critical_threshold=0.70,
-                    contamination=0.05,
-                    db=db
-                )
-                ModelService.activate_model("v1.0.0-baseline", db=db)
+                print(f"[Seed] Active model '{active_model.version}' ({active_model.model_type}) loaded into memory.")
+            except Exception as ex:
+                print(f"[Seed] Warning loading active model: {ex}")
         else:
-            # When demo data is disabled, check if an active model record already exists
-            active_model = db.query(MLModelRecord).filter(MLModelRecord.active_flag == True).first()
-            if active_model:
-                try:
-                    loaded_model = AnomalyModelWrapper.load(active_model.artifact_path)
-                    set_active_model(loaded_model)
-                    engine_inst = get_decision_engine()
-                    thresh = active_model.thresholds or {}
-                    engine_inst.update_thresholds(
-                        thresh.get("warn_threshold", settings.AI_WARN_THRESHOLD),
-                        thresh.get("critical_threshold", settings.AI_CRITICAL_THRESHOLD)
-                    )
-                    print(f"[Seed] Active model '{active_model.version}' ({active_model.model_type}) loaded into memory.")
-                except Exception as ex:
-                    print(f"[Seed] Warning loading active model: {ex}")
+            any_model = db.query(MLModelRecord).first()
+            if any_model:
+                ModelService.activate_model(any_model.version, db=db)
             else:
-                any_model = db.query(MLModelRecord).first()
-                if any_model:
-                    ModelService.activate_model(any_model.version, db=db)
-                else:
-                    artifact_file = os.path.join(settings.MODELS_DIR, "v1.0.0-baseline.joblib")
-                    if os.path.exists(artifact_file):
-                        base_model = MLModelRecord(
-                            id="v1.0.0-baseline",
-                            version="v1.0.0-baseline",
-                            model_type="IsolationForest",
-                            active_flag=True,
-                            thresholds={"warn_threshold": 0.45, "critical_threshold": 0.70},
-                            metrics={"model_type": "IsolationForest", "status": "active"},
-                            artifact_path=artifact_file,
-                            created_at=datetime.utcnow()
-                        )
-                        db.add(base_model)
-                        db.commit()
-                        ModelService.activate_model("v1.0.0-baseline", db=db)
+                artifact_file = os.path.join(settings.MODELS_DIR, "v1.0.0-baseline.joblib")
+                if os.path.exists(artifact_file):
+                    base_model = MLModelRecord(
+                        id="v1.0.0-baseline",
+                        version="v1.0.0-baseline",
+                        model_type="IsolationForest",
+                        active_flag=True,
+                        thresholds={"warn_threshold": 0.45, "critical_threshold": 0.70},
+                        metrics={"model_type": "IsolationForest", "status": "active"},
+                        artifact_path=artifact_file,
+                        created_at=datetime.utcnow()
+                    )
+                    db.add(base_model)
+                    db.commit()
+                    try:
+                        loaded_model = AnomalyModelWrapper.load(artifact_file)
+                        set_active_model(loaded_model)
+                    except Exception:
+                        pass
 
         # Audit log entry
         db.add(AuditLog(

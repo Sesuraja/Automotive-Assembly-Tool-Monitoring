@@ -59,9 +59,52 @@ export interface VendorTestEndpointResult {
   http_status?: number | null;
   latency_ms: number;
   is_json?: boolean;
+  is_html?: boolean;
   detected_samples?: number;
   data_preview?: any;
   error_detail?: string;
+}
+
+export interface DiscoveredBleDevice {
+  device_id: string;
+  name: string;
+  station_id: string;
+  last_seen: string;
+  packets_count: number;
+  rssi: number;
+  battery_pct: number;
+  temperature?: number;
+  status: 'online' | 'offline';
+  device_type: string;
+  gateway_id?: string;
+}
+
+export interface BleTelemetryLatestResponse {
+  status: string;
+  endpoint: string;
+  gateway_url: string;
+  timestamp: string;
+  device_id: string;
+  selected_device_id?: string;
+  selected_device_ids?: string[];
+  station_id: string;
+  latest_packet: any;
+  packet?: any;
+  telemetry: any;
+  live_reading: any;
+  devices_telemetry?: Record<string, any>;
+  recent_packets: any[];
+  active_gateway: any;
+  total_packets: number;
+  latest_batch_packets?: number;
+  live_session_packets?: number;
+  is_streaming: boolean;
+  total_devices_coming?: number;
+  total_ble_gateways?: number;
+  devices_count?: number;
+  gateways_count?: number;
+  discovered_devices?: DiscoveredBleDevice[];
+  active_gateways?: BleGateway[];
 }
 
 export interface VibrationFeatures {
@@ -106,6 +149,8 @@ export interface LiveTelemetry {
   ai_health?: ToolHealthInfo | null;
   motor_nominal_rpm?: number;
   motor_max_rpm?: number;
+  motor_status?: string;
+  status?: string;
 }
 
 export interface MotorStopAnalysis {

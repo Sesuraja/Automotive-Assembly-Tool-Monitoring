@@ -27,11 +27,14 @@ export interface AppSettings {
   // Motor Auto Stop / Manual Stop & Restart Control
   motorTripMode: 'AUTO' | 'MANUAL';
   autoRestartEnabled: boolean;
+  // Selected Hardware Devices Filter
+  selectedDeviceIds: string[];
 }
 
 export interface AppSettingsContextType {
   settings: AppSettings;
   updateSettings: (newSettings: Partial<AppSettings>) => Promise<void>;
+  saveSelectedDevices: (deviceIds: string[]) => Promise<void>;
   formatTime: (dateInput: string | number | Date | null | undefined) => string;
   formatDate: (dateInput: string | number | Date | null | undefined) => string;
   formatDateTime: (dateInput: string | number | Date | null | undefined) => string;
@@ -62,6 +65,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   persistenceWindows: 3,
   motorTripMode: 'AUTO',
   autoRestartEnabled: false,
+  selectedDeviceIds: [],
 };
 
 // All standard IANA timezones supported by browser
@@ -165,7 +169,23 @@ export const AppSettingsProvider: React.FC<{ children: React.ReactNode }> = ({ c
             persistenceWindows: parseInt(remote.persistence_windows ?? settings.persistenceWindows, 10),
             motorTripMode: resolvedTripMode,
             autoRestartEnabled: resolvedAutoRestart,
+            selectedDeviceIds: settings.selectedDeviceIds || [],
           };
+
+          // Synchronize saved selected hardware devices from database
+          try {
+            const savedDevs = await api.getSelectedDevices();
+            if (Array.isArray(savedDevs) && savedDevs.length > 0) {
+              merged.selectedDeviceIds = savedDevs;
+            } else if (cachedSettings?.selectedDeviceIds && Array.isArray(cachedSettings.selectedDeviceIds)) {
+              merged.selectedDeviceIds = cachedSettings.selectedDeviceIds;
+            }
+          } catch {
+            if (cachedSettings?.selectedDeviceIds) {
+              merged.selectedDeviceIds = cachedSettings.selectedDeviceIds;
+            }
+          }
+
           setSettings(merged);
           localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
         }
@@ -177,6 +197,24 @@ export const AppSettingsProvider: React.FC<{ children: React.ReactNode }> = ({ c
     };
     fetchRemoteSettings();
   }, []);
+
+  const saveSelectedDevices = async (deviceIds: string[]) => {
+    const cleaned = (deviceIds || []).filter((id) => id && String(id).toLowerCase() !== 'all');
+    const merged: AppSettings = { ...settings, selectedDeviceIds: cleaned };
+    setSettings(merged);
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+      localStorage.setItem('aperture_selected_devices', JSON.stringify(cleaned));
+    } catch (e) {
+      console.warn('[AppSettings] localStorage write error:', e);
+    }
+
+    try {
+      await api.saveSelectedDevices(cleaned);
+    } catch (err) {
+      console.warn('[AppSettings] Remote save of selected devices failed:', err);
+    }
+  };
 
   const updateSettings = async (newSettings: Partial<AppSettings>) => {
     // Immediate state and localStorage update for instantaneous UI reactivity
@@ -311,6 +349,7 @@ export const AppSettingsProvider: React.FC<{ children: React.ReactNode }> = ({ c
       value={{
         settings,
         updateSettings,
+        saveSelectedDevices,
         formatTime,
         formatDate,
         formatDateTime,
@@ -323,10 +362,18 @@ export const AppSettingsProvider: React.FC<{ children: React.ReactNode }> = ({ c
   );
 };
 
+const defaultFallbackContext: AppSettingsContextType = {
+  settings: DEFAULT_SETTINGS,
+  updateSettings: async () => {},
+  saveSelectedDevices: async () => {},
+  formatTime: (d) => String(d || ''),
+  formatDate: (d) => String(d || ''),
+  formatDateTime: (d) => String(d || ''),
+  allTimezones: ['Asia/Kolkata', 'UTC', 'America/New_York', 'Europe/London'],
+  isLoading: false,
+};
+
 export const useAppSettings = (): AppSettingsContextType => {
   const context = useContext(AppSettingsContext);
-  if (!context) {
-    throw new Error('useAppSettings must be used within an AppSettingsProvider');
-  }
-  return context;
+  return context || defaultFallbackContext;
 };

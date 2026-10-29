@@ -42,13 +42,13 @@ export const SimulatorDeck: React.FC<SimulatorDeckProps> = ({ simState, telemetr
 
   // Pure authentic data directly from live API telemetry / reading (no simulated mock values)
   const activeVib = telemetry?.features?.rms ?? liveReading?.vibration_rms ?? liveReading?.rms_g ?? 0;
-  const activePeak = telemetry?.features?.peak ?? liveReading?.peak_g ?? (typeof activeVib === 'number' && activeVib > 0 ? Number((activeVib * 1.85).toFixed(4)) : 0);
+  const activePeak = telemetry?.features?.peak ?? liveReading?.peak_g ?? liveReading?.features?.peak ?? 0;
   const activeRpm = telemetry?.measured_rpm ?? liveReading?.measured_rpm ?? 0;
-  const activeState = telemetry?.state ?? (liveReading?.status === 'OFF' ? 'STOPPED' : liveReading?.status === 'SLOW' ? 'REDUCED_SPEED' : 'NORMAL');
-  const activeLight = telemetry?.indicator_light ?? (liveReading?.status === 'OFF' ? 'RED' : liveReading?.status === 'SLOW' ? 'AMBER' : 'GREEN');
-  const activeBattery = telemetry?.battery_pct ? ((telemetry.battery_pct / 100) * 3300).toFixed(0) : (liveReading?.vbatt ?? 3020);
-  const activeHealth = telemetry?.ai_health?.health_index_pct ?? (activeState === 'NORMAL' ? 96.5 : activeState === 'REDUCED_SPEED' ? 72.0 : 34.0);
-  const activeTemp = telemetry?.temperature ?? liveReading?.temp ?? 26.4;
+  const activeState = telemetry?.state ?? liveReading?.state ?? (liveReading?.status === 'OFF' ? 'STOPPED' : liveReading?.status === 'SLOW' ? 'REDUCED_SPEED' : 'NORMAL');
+  const activeLight = telemetry?.indicator_light ?? liveReading?.indicator_light ?? (activeState === 'STOPPED' ? 'RED' : activeState === 'REDUCED_SPEED' ? 'AMBER' : 'GREEN');
+  const activeBattery = telemetry?.battery_pct ? ((telemetry.battery_pct / 100) * 3300).toFixed(0) : (liveReading?.vbatt ?? 0);
+  const activeHealth = telemetry?.ai_health?.health_index_pct ?? (telemetry || liveReading ? (activeState === 'NORMAL' ? 100.0 : activeState === 'REDUCED_SPEED' ? 70.0 : 30.0) : 0);
+  const activeTemp = telemetry?.temperature ?? liveReading?.temp ?? liveReading?.temperature ?? 0;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
@@ -91,7 +91,7 @@ export const SimulatorDeck: React.FC<SimulatorDeckProps> = ({ simState, telemetr
             <span>Hardware Sensor Telemetry ({settings.stationName || 'Station 4A'})</span>
           </div>
           <div className="b2b-card-subtitle">
-            Authentic live measurements from sensor MAC <strong>{(settings as any).activeSensorMac || 'AC:23:3F:88:D1:05'}</strong>
+            Authentic live measurements from sensor MAC <strong>{telemetry?.device_id || liveReading?.device_id || '304A2657BF44'}</strong>
           </div>
 
           <div style={{ marginTop: '1rem', display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.75rem' }}>

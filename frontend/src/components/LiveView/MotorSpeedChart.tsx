@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAppSettings } from '../../context/AppSettingsContext';
+import { SmoothNumber } from '../common/SmoothNumber';
 
 interface SpeedDataPoint {
   time: string;
@@ -25,6 +26,52 @@ export const MotorSpeedChart: React.FC<MotorSpeedChartProps> = ({
   const ratedSpeed = propRatedRpm ?? settings.motorRatedRpm ?? 1500;
   const maxRpm = propMaxRpm ?? settings.motorMaxRpm ?? 2000;
 
+  // Smoothly interpolated continuous display data (60fps fluid transition)
+  const [displayData, setDisplayData] = useState<SpeedDataPoint[]>(data);
+  const prevDataRef = useRef<SpeedDataPoint[]>(data);
+
+  useEffect(() => {
+    if (data.length === 0) {
+      setDisplayData([]);
+      prevDataRef.current = [];
+      return;
+    }
+
+    const prev = prevDataRef.current.length > 0 ? prevDataRef.current : data;
+    const target = data;
+    let animId: number;
+    const startTime = performance.now();
+    const duration = 650; // ms duration for seamless transitions
+
+    const step = (now: number) => {
+      const elapsed = now - startTime;
+      const progress = Math.min(1, elapsed / duration);
+      const ease = 1 - Math.pow(1 - progress, 3);
+
+      const interpolated: SpeedDataPoint[] = target.map((pt, idx) => {
+        const prevIdx = prev.length === target.length ? idx : Math.min(idx, prev.length - 1);
+        const p0 = prev[prevIdx] || pt;
+        return {
+          time: pt.time,
+          commandedPct: p0.commandedPct + (pt.commandedPct - p0.commandedPct) * ease,
+          measuredRpm: p0.measuredRpm + (pt.measuredRpm - p0.measuredRpm) * ease,
+        };
+      });
+
+      setDisplayData(interpolated);
+      prevDataRef.current = interpolated;
+
+      if (progress < 1) {
+        animId = requestAnimationFrame(step);
+      }
+    };
+
+    animId = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(animId);
+  }, [data]);
+
+  const activePoints = displayData.length > 0 ? displayData : data;
+
   const width = 640;
   const height = 200;
   const padding = { top: 20, right: 30, bottom: 30, left: 45 };
@@ -33,8 +80,8 @@ export const MotorSpeedChart: React.FC<MotorSpeedChartProps> = ({
   const plotHeight = height - padding.top - padding.bottom;
 
   const getX = (index: number) => {
-    if (data.length <= 1) return padding.left;
-    return padding.left + (index / (data.length - 1)) * plotWidth;
+    if (activePoints.length <= 1) return padding.left;
+    return padding.left + (index / (activePoints.length - 1)) * plotWidth;
   };
 
   const getY = (rpm: number) => {
@@ -43,13 +90,13 @@ export const MotorSpeedChart: React.FC<MotorSpeedChartProps> = ({
   };
 
   const cmdPath =
-    data.length > 0
-      ? data.map((p, i) => `${i === 0 ? 'M' : 'L'} ${getX(i)} ${getY((p.commandedPct / 100) * ratedSpeed)}`).join(' ')
+    activePoints.length > 0
+      ? activePoints.map((p, i) => `${i === 0 ? 'M' : 'L'} ${getX(i)} ${getY((p.commandedPct / 100) * ratedSpeed)}`).join(' ')
       : '';
 
   const measuredPath =
-    data.length > 0
-      ? data.map((p, i) => `${i === 0 ? 'M' : 'L'} ${getX(i)} ${getY(p.measuredRpm)}`).join(' ')
+    activePoints.length > 0
+      ? activePoints.map((p, i) => `${i === 0 ? 'M' : 'L'} ${getX(i)} ${getY(p.measuredRpm)}`).join(' ')
       : '';
 
   const currentPoint =
@@ -81,13 +128,18 @@ export const MotorSpeedChart: React.FC<MotorSpeedChartProps> = ({
           <span style={{ color: '#059669', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
             <span style={{ width: 10, height: 2, background: '#059669', display: 'inline-block' }}></span>
             Command:{' '}
-            {currentPoint
-              ? `${currentPoint.commandedPct.toFixed(0)}% (${((currentPoint.commandedPct / 100) * ratedSpeed).toFixed(0)} RPM)`
-              : '—'}
+            {currentPoint ? (
+              <span>
+                <SmoothNumber value={currentPoint.commandedPct} decimals={0} suffix="%" /> (
+                <SmoothNumber value={(currentPoint.commandedPct / 100) * ratedSpeed} decimals={0} suffix=" RPM" />)
+              </span>
+            ) : (
+              '—'
+            )}
           </span>
           <span style={{ color: '#2563eb', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
             <span style={{ width: 10, height: 2, background: '#2563eb', display: 'inline-block' }}></span>
-            Measured: {currentPoint ? `${currentPoint.measuredRpm.toFixed(0)} RPM` : '—'}
+            Measured: {currentPoint ? <SmoothNumber value={currentPoint.measuredRpm} decimals={0} suffix=" RPM" /> : '—'}
           </span>
         </div>
       </div>

@@ -1462,3 +1462,93 @@ input[type="range"] {
     transform: scale(0.8);
   }
 }
+
+/* ========================================================================== */
+/* FLUID TRANSITION SYSTEM - CONTINUOUS FLOW FOR INGRESS & EGRESS DATA        */
+/* ========================================================================== */
+
+/* Smooth page router transitions when switching tabs */
+.page-enter-transition {
+  animation: pageTransitionFade 0.32s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes pageTransitionFade {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Smooth row ingress/egress for packets, telemetry tables, and timeline */
+.smooth-row-entry {
+  animation: smoothRowEnter 0.42s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes smoothRowEnter {
+  0% {
+    opacity: 0;
+    transform: translateY(-8px);
+    background-color: rgba(2, 132, 199, 0.12);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Fluid UI Cards & Tiles Transition */
+.metric-tile,
+.b2b-card,
+.status-banner,
+.jog-btn,
+.sidebar-station-card,
+.node-card {
+  transition: background-color 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+              border-color 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+              transform 0.2s ease;
+}
+
+.metric-tile::before {
+  transition: background-color 0.45s cubic-bezier(0.4, 0, 0.2, 1),
+              height 0.3s ease;
+}
+
+.metric-value {
+  font-variant-numeric: tabular-nums;
+  transition: color 0.3s ease;
+}
+
+/* Live stream status breathing pulse */
+.live-stream-pulse {
+  animation: liveStreamPulse 2s infinite ease-in-out;
+}
+
+@keyframes liveStreamPulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.15);
+    opacity: 0.75;
+  }
+}
+
+/* Continuous SVG curve stroke transitions */
+.chart-line-rms,
+.chart-line-peak,
+.chart-area-rms,
+.chart-line-cmd,
+.chart-line-measured {
+  transition: stroke 0.4s ease, fill 0.4s ease;
+}
+
+/* Timeline entrance */
+.timeline-item {
+  transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}

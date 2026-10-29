@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import type { LiveTelemetry, SimulatorState } from '../../types';
 import { api } from '../../services/api';
-import { Gauge, RotateCw } from 'lucide-react';
+import { Gauge, RotateCw, Play, Square } from 'lucide-react';
 import { useAppSettings } from '../../context/AppSettingsContext';
 
 interface MotorDriveVisualizerProps {
@@ -37,8 +37,8 @@ export const MotorDriveVisualizer: React.FC<MotorDriveVisualizerProps> = ({
     return () => clearInterval(interval);
   }, [telemetry]);
 
-  // Use live telemetry prop, fallback to locally polled reading, fallback to nominal
-  const currentRpm = telemetry?.measured_rpm ?? localReading?.measured_rpm ?? configuredRatedRpm;
+  // Use live telemetry prop, fallback to locally polled reading, fallback to 0
+  const currentRpm = telemetry?.measured_rpm ?? localReading?.measured_rpm ?? 0;
 
   // Smoothly animated display RPM for continuous fluid transitions
   const [displayRpm, setDisplayRpm] = useState<number>(currentRpm);
@@ -78,11 +78,12 @@ export const MotorDriveVisualizer: React.FC<MotorDriveVisualizerProps> = ({
   const isRunning = !isStopped && currentRpm > 15;
 
   // Derived engineering metrics for telemetry displays
-  const shaftFreqHz = (currentRpm / 60).toFixed(1);
-  const angularVelocity = ((2 * Math.PI * currentRpm) / 60).toFixed(1);
-  const phaseCurrent = (2.5 * (currentRpm / nominalRatedRpm) + 0.12).toFixed(2);
-  const estTorque = (4.2 * (currentRpm / nominalRatedRpm)).toFixed(1);
-  const estTemp = (27 + 5 * (currentRpm / nominalRatedRpm)).toFixed(1);
+  const shaftFreqHz = currentRpm > 0 ? (currentRpm / 60).toFixed(1) : '0.0';
+  const angularVelocity = currentRpm > 0 ? ((2 * Math.PI * currentRpm) / 60).toFixed(1) : '0.0';
+  const phaseCurrent = currentRpm > 0 ? (2.5 * (currentRpm / nominalRatedRpm) + 0.12).toFixed(2) : '0.00';
+  const estTorque = currentRpm > 0 ? (4.2 * (currentRpm / nominalRatedRpm)).toFixed(1) : '0.0';
+  const liveTemp = telemetry?.temperature ?? localReading?.temp ?? localReading?.temperature;
+  const estTemp = liveTemp !== undefined && liveTemp !== null ? Number(liveTemp).toFixed(1) : '0.0';
   const syncSpeed = nominalRatedRpm;
   const slipPct = currentRpm > 10 ? Math.max(0, ((syncSpeed - currentRpm) / syncSpeed) * 100).toFixed(1) : '0.0';
 
@@ -118,6 +119,44 @@ export const MotorDriveVisualizer: React.FC<MotorDriveVisualizerProps> = ({
   const targetRpm = (commandedPct / 100) * nominalRatedRpm;
 
 
+
+  // Dedicated direct motor speed controls & emergency actuation
+  const handleRunMotor = async () => {
+    setIsApplying(true);
+    try {
+      await api.commandMotor('SET_SPEED', configuredRatedRpm);
+      if (onRefresh) onRefresh();
+    } catch (e) {
+      console.error('Failed to run motor:', e);
+    } finally {
+      setIsApplying(false);
+    }
+  };
+
+  const handleSlowMotor = async () => {
+    setIsApplying(true);
+    try {
+      await api.commandMotor('REDUCE_SPEED', Math.round(configuredRatedRpm * 0.5));
+      if (onRefresh) onRefresh();
+    } catch (e) {
+      console.error('Failed to throttle motor:', e);
+    } finally {
+      setIsApplying(false);
+    }
+  };
+
+  const handleStopMotor = async () => {
+    setIsApplying(true);
+    try {
+      await api.commandMotor('STOP', 0);
+      await api.emergencyStop('station-A', 'Operator', 'Manual stop from visualizer');
+      if (onRefresh) onRefresh();
+    } catch (e) {
+      console.error('Failed to stop motor:', e);
+    } finally {
+      setIsApplying(false);
+    }
+  };
 
   // Dedicated one-click station reset and motor restart
   const handleRestartMotor = async () => {
@@ -529,9 +568,106 @@ export const MotorDriveVisualizer: React.FC<MotorDriveVisualizerProps> = ({
                 <span>FREQ: <strong>{shaftFreqHz} Hz</strong></span>
               </div>
             </div>
+
+            {/* Real-Time Speed & Safety Control Buttons */}
+            <div style={{ display: 'flex', gap: '0.45rem', justifyContent: 'center', marginTop: '0.85rem', flexWrap: 'wrap' }}>
+              <button
+                onClick={handleRunMotor}
+                disabled={isApplying || isStopped}
+                style={{
+                  padding: '0.35rem 0.65rem',
+                  borderRadius: 5,
+                  border: '1px solid #10b981',
+                  background: commandedPct === 100 && !isStopped ? '#10b981' : '#ecfdf5',
+                  color: commandedPct === 100 && !isStopped ? '#ffffff' : '#065f46',
+                  fontWeight: 600,
+                  fontSize: '0.72rem',
+                  cursor: isStopped ? 'not-allowed' : 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.3rem',
+                  opacity: isStopped ? 0.5 : 1,
+                  transition: 'all 0.15s ease',
+                }}
+                title="Command 100% nominal rated speed"
+              >
+                <Play size={11} fill={commandedPct === 100 && !isStopped ? '#ffffff' : '#065f46'} />
+                <span>100% Run</span>
+              </button>
+
+              <button
+                onClick={handleSlowMotor}
+                disabled={isApplying || isStopped}
+                style={{
+                  padding: '0.35rem 0.65rem',
+                  borderRadius: 5,
+                  border: '1px solid #f59e0b',
+                  background: commandedPct === 50 && !isStopped ? '#f59e0b' : '#fffbeb',
+                  color: commandedPct === 50 && !isStopped ? '#ffffff' : '#92400e',
+                  fontWeight: 600,
+                  fontSize: '0.72rem',
+                  cursor: isStopped ? 'not-allowed' : 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.3rem',
+                  opacity: isStopped ? 0.5 : 1,
+                  transition: 'all 0.15s ease',
+                }}
+                title="Throttle motor to 50% mitigated speed"
+              >
+                <span>50% Slow</span>
+              </button>
+
+              <button
+                onClick={handleStopMotor}
+                disabled={isApplying || isStopped}
+                style={{
+                  padding: '0.35rem 0.65rem',
+                  borderRadius: 5,
+                  border: '1px solid #ef4444',
+                  background: isStopped ? '#fecaca' : '#fef2f2',
+                  color: '#991b1b',
+                  fontWeight: 600,
+                  fontSize: '0.72rem',
+                  cursor: isStopped ? 'not-allowed' : 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.3rem',
+                  opacity: isStopped ? 0.5 : 1,
+                  transition: 'all 0.15s ease',
+                }}
+                title="Trip motor drive and trigger emergency stop"
+              >
+                <Square size={10} fill="#991b1b" />
+                <span>E-Stop</span>
+              </button>
+
+              {isStopped && (
+                <button
+                  onClick={handleRestartMotor}
+                  disabled={isApplying}
+                  style={{
+                    padding: '0.35rem 0.75rem',
+                    borderRadius: 5,
+                    border: 'none',
+                    background: '#10b981',
+                    color: '#ffffff',
+                    fontWeight: 700,
+                    fontSize: '0.72rem',
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.3rem',
+                    boxShadow: '0 2px 4px rgba(16,185,129,0.3)',
+                  }}
+                  title="Acknowledge fault and clear safety lockout"
+                >
+                  <RotateCw size={12} />
+                  <span>Reset Lockout &amp; Run</span>
+                </button>
+              )}
+            </div>
           </div>
-
-
         </div>
       </div>
 

@@ -121,7 +121,8 @@ async def reset_station(
 ):
     operator = current_user.get("username", "Operator")
     notes = cmd.notes if cmd else None
-    result = await StationService.reset_station(station_id, operator=operator, notes=notes, db=db)
+    rpm = cmd.rpm if cmd else None
+    result = await StationService.reset_station(station_id, operator=operator, notes=notes, db=db, rpm=rpm)
     
     db.add(AuditLog(
         username=operator,

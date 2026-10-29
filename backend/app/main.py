@@ -36,6 +36,18 @@ async def _vendor_gateway_poller():
             from backend.app.models.schema import VendorGatewayConfig
             from backend.app.api.gateway import trigger_vendor_gateway_sync
             cfg = db.query(VendorGatewayConfig).filter(VendorGatewayConfig.id == "default-vendor-gateway").first()
+            if not cfg:
+                cfg = VendorGatewayConfig(
+                    id="default-vendor-gateway",
+                    name="Primary Industrial BLE Gateway",
+                    vendor_type="GenericREST",
+                    api_url=settings.VENDOR_BLE_GATEWAY_URL,
+                    is_active=True,
+                    poll_interval_sec=1.0,
+                    station_id="station-A"
+                )
+                db.add(cfg)
+                db.commit()
             if cfg and cfg.api_url:
                 poll_interval = max(0.2, float(cfg.poll_interval_sec or 1.0))
                 if cfg.is_active:
@@ -52,7 +64,6 @@ async def lifespan(app: FastAPI):
     # Startup: Seed database and baseline model without demo data
     init_db_and_seed()
     global _watchdog_task, _vendor_gw_task
-    # Do NOT auto-start the simulator background task - only real host data is used
     _watchdog_task = asyncio.create_task(_link_loss_watchdog())
     _vendor_gw_task = asyncio.create_task(_vendor_gateway_poller())
     yield
@@ -89,10 +100,15 @@ app.include_router(ingest_router)
 
 # Direct aliases for settings endpoints so GET, POST, and PUT work everywhere
 from backend.app.api.admin import get_settings, update_settings
+from backend.app.api.gateway import get_selected_devices, save_selected_devices
 app.add_api_route("/api/v1/settings", get_settings, methods=["GET"])
 app.add_api_route("/api/v1/settings", update_settings, methods=["POST", "PUT"])
 app.add_api_route("/api/settings", get_settings, methods=["GET"])
 app.add_api_route("/api/settings", update_settings, methods=["POST", "PUT"])
+app.add_api_route("/api/v1/gateway/selected-devices", get_selected_devices, methods=["GET"])
+app.add_api_route("/api/v1/gateway/selected-devices", save_selected_devices, methods=["POST"])
+app.add_api_route("/api/gateway/selected-devices", get_selected_devices, methods=["GET"])
+app.add_api_route("/api/gateway/selected-devices", save_selected_devices, methods=["POST"])
 
 @app.get("/health")
 def health_check():

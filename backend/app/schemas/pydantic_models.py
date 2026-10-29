@@ -38,6 +38,7 @@ class IngestPayload(BaseModel):
 class StationControlCommand(BaseModel):
     action: Optional[str] = "COMMAND" # "RESET", "STOP", "SET_SPEED"
     speed_pct: Optional[float] = None
+    rpm: Optional[float] = None
     operator: Optional[str] = "Operator"
     notes: Optional[str] = None
 

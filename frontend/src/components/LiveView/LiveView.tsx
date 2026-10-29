@@ -15,8 +15,10 @@ import {
   History,
   CheckCircle2,
   RotateCcw,
+  Square,
 } from 'lucide-react';
 import { useAppSettings } from '../../context/AppSettingsContext';
+import { SmoothNumber } from '../common/SmoothNumber';
 
 interface LiveViewProps {
   telemetry: LiveTelemetry | null;
@@ -37,7 +39,7 @@ export const LiveView: React.FC<LiveViewProps> = ({
   onEmergencyStop: _onEmergencyStop,
   isActionLoading,
 }) => {
-  const { settings } = useAppSettings();
+  const { settings, saveSelectedDevices } = useAppSettings();
   const isAwaitingTelemetry = telemetry === null;
 
   const currentRms = telemetry?.features?.rms;
@@ -46,8 +48,9 @@ export const LiveView: React.FC<LiveViewProps> = ({
   const rawScore = telemetry?.raw_anomaly_score;
   const state = telemetry?.state || 'NORMAL';
   const isMotorHalted = state === 'STOPPED';
-  const measuredRpm = isMotorHalted ? 0 : (telemetry?.measured_rpm ?? 0);
   const commandedPct = isMotorHalted ? 0 : (telemetry?.commanded_speed_pct ?? 100);
+  const isSlowdown = state === 'REDUCED_SPEED' || commandedPct === 50 || telemetry?.motor_status === 'SLOW';
+  const measuredRpm = isMotorHalted ? 0 : (telemetry?.measured_rpm ?? 0);
   const currentAmps = isMotorHalted ? 0 : (telemetry?.current_amps ?? 0);
   const reason = telemetry?.last_decision_reason || 'Awaiting initial telemetry packet...';
 
@@ -58,6 +61,12 @@ export const LiveView: React.FC<LiveViewProps> = ({
   const isScoreWarn = anomalyScore !== undefined && anomalyScore >= warnThresh;
   const isScoreCrit = anomalyScore !== undefined && anomalyScore >= critThresh;
 
+  // ISO 10816 / ISO 20816 Speed-Aware Vibration Envelope
+  const userConfiguredRatedRpm = Number(settings.motorRatedRpm || settings.motorMaxRpm || 1500);
+  const effectiveRpm = typeof measuredRpm === 'number' && measuredRpm > 50 ? measuredRpm : userConfiguredRatedRpm;
+  const speedFactor = Math.sqrt(Math.max(100, effectiveRpm) / Math.max(100, userConfiguredRatedRpm));
+  const dynamicNominalRms = 0.22 * speedFactor;
+
   // AI Trip Diagnostics State
   const [tripAnalysis, setTripAnalysis] = useState<MotorStopAnalysis | null>(
     telemetry?.latest_trip_analysis || null
@@ -66,17 +75,17 @@ export const LiveView: React.FC<LiveViewProps> = ({
   const [tripHistory, setTripHistory] = useState<MotorStopAnalysis[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState<boolean>(false);
 
-  // Sync trip analysis from telemetry or database stably without flip-flopping
+  // Sync trip / slowdown analysis from telemetry or database
   useEffect(() => {
-    if (state !== 'STOPPED') {
+    if (state !== 'STOPPED' && !isSlowdown) {
       setTripAnalysis(null);
       return;
     }
 
     if (telemetry?.latest_trip_analysis) {
       setTripAnalysis(telemetry.latest_trip_analysis);
-    } else {
-      // Only fetch from API if we do not already have an active tripAnalysis
+    } else if (state === 'STOPPED') {
+      // Only fetch from API if we do not already have an active tripAnalysis while STOPPED
       setTripAnalysis((prev) => {
         if (!prev) {
           api.getLatestTripAnalysis(settings.stationId || 'station-A').then((res) => {
@@ -86,7 +95,7 @@ export const LiveView: React.FC<LiveViewProps> = ({
         return prev;
       });
     }
-  }, [telemetry?.latest_trip_analysis, state, settings.stationId]);
+  }, [telemetry?.latest_trip_analysis, state, isSlowdown, settings.stationId]);
 
   // Load historical trip records from database when modal opens
   const handleOpenHistory = async () => {
@@ -174,7 +183,74 @@ export const LiveView: React.FC<LiveViewProps> = ({
           </div>
 
           {/* Right: Telemetry Chips & Action Controls */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', fontSize: '0.75rem', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.75rem', flexWrap: 'wrap' }}>
+            {/* Active Streaming Device Node Chip */}
+            <span
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.35rem',
+                padding: '0.2rem 0.55rem',
+                background: '#f8fafc',
+                borderRadius: 5,
+                color: '#334155',
+                fontWeight: 600,
+                fontSize: '0.72rem',
+                border: '1px solid #e2e8f0',
+              }}
+              title={`Streaming live from physical hardware node ${telemetry?.device_id || 'Auto-detect'}`}
+            >
+              <Cpu size={12} color="#0284c7" />
+              <span>Node: <strong className="font-mono">{telemetry?.device_id || 'Detecting...'}</strong></span>
+              {typeof telemetry?.battery_pct === 'number' && (
+                <span
+                  style={{
+                    color: telemetry.battery_pct < 20 ? '#ef4444' : '#16a34a',
+                    fontWeight: 700,
+                    marginLeft: '0.2rem',
+                  }}
+                >
+                  ({telemetry.battery_pct.toFixed(0)}% batt)
+                </span>
+              )}
+            </span>
+
+            {/* Filter Active Badge + One-Click Clear */}
+            {settings.selectedDeviceIds && settings.selectedDeviceIds.length > 0 && (
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.35rem',
+                  padding: '0.2rem 0.5rem',
+                  background: '#fef3c7',
+                  borderRadius: 5,
+                  color: '#92400e',
+                  fontWeight: 600,
+                  fontSize: '0.7rem',
+                  border: '1px solid #fde68a',
+                }}
+              >
+                <span>Filter: {settings.selectedDeviceIds.join(', ')}</span>
+                <button
+                  onClick={() => saveSelectedDevices([])}
+                  style={{
+                    background: '#fef9c3',
+                    border: '1px solid #fde047',
+                    borderRadius: 3,
+                    color: '#854d0e',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    fontSize: '0.68rem',
+                    padding: '0.05rem 0.35rem',
+                  }}
+                  title="Clear hardware filter to receive data from all active nodes"
+                >
+                  Clear Filter
+                </button>
+              </span>
+            )}
+
             <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: '#059669', fontWeight: 600 }}>
               <span className="motor-pulse-dot green" style={{ width: 6, height: 6 }}></span>
               10 Hz BLE &bull; Latency &lt; 8ms
@@ -204,6 +280,32 @@ export const LiveView: React.FC<LiveViewProps> = ({
               <History size={13} />
               <span>AI Trip Log</span>
             </button>
+
+            {/* Emergency Stop Button when RUNNING */}
+            {state !== 'STOPPED' && _onEmergencyStop && (
+              <button
+                onClick={_onEmergencyStop}
+                disabled={isActionLoading}
+                style={{
+                  padding: '0.35rem 0.85rem',
+                  borderRadius: 5,
+                  background: '#ef4444',
+                  color: '#fff',
+                  border: 'none',
+                  fontWeight: 700,
+                  fontSize: '0.75rem',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.3rem',
+                  boxShadow: '0 2px 4px rgba(239,68,68,0.3)',
+                }}
+                title="Immediate operator safety stop"
+              >
+                <Square size={11} fill="#ffffff" />
+                <span>Emergency Stop</span>
+              </button>
+            )}
 
             {/* Quick Reset Button when STOPPED */}
             {state === 'STOPPED' && onReset && (
@@ -266,7 +368,7 @@ export const LiveView: React.FC<LiveViewProps> = ({
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                   <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#166534' }}>
-                    AI Tool Health Prognostics: {aiHealth.health_index_pct}%
+                    AI Tool Health Prognostics: <SmoothNumber value={aiHealth.health_index_pct} decimals={0} suffix="%" />
                   </span>
                   <span
                     style={{
@@ -276,6 +378,7 @@ export const LiveView: React.FC<LiveViewProps> = ({
                       borderRadius: 4,
                       fontSize: '0.65rem',
                       fontWeight: 700,
+                      transition: 'background 0.4s ease',
                     }}
                   >
                     {aiHealth.stage}
@@ -292,7 +395,7 @@ export const LiveView: React.FC<LiveViewProps> = ({
               <div>
                 <div style={{ fontSize: '0.65rem', color: '#64748b', fontWeight: 600 }}>PREDICTED CYCLES REMAINING</div>
                 <div className="font-mono" style={{ fontSize: '0.95rem', fontWeight: 700, color: '#0f172a' }}>
-                  ~{aiHealth.estimated_cycles_remaining.toLocaleString()} fastenings
+                  ~<SmoothNumber value={aiHealth.estimated_cycles_remaining} decimals={0} suffix=" fastenings" />
                 </div>
               </div>
               <div style={{ width: '130px' }}>
@@ -303,7 +406,7 @@ export const LiveView: React.FC<LiveViewProps> = ({
                       height: '100%',
                       width: `${aiHealth.health_index_pct}%`,
                       background: aiHealth.stage_color,
-                      transition: 'width 0.3s ease',
+                      transition: 'width 0.65s cubic-bezier(0.34, 1.25, 0.64, 1), background-color 0.4s ease',
                     }}
                   />
                 </div>
@@ -314,24 +417,38 @@ export const LiveView: React.FC<LiveViewProps> = ({
       </div>
 
       {/* ============================================================== */}
-      {/* AI ENGINE POST-TRIP ROOT CAUSE ANALYSIS CARD (WHEN MOTOR STOPS) */}
+      {/* AI ENGINE ROOT CAUSE & FORENSICS CARD (WHEN MOTOR STOPS OR SLOWS DOWN) */}
       {/* ============================================================== */}
-      {state === 'STOPPED' && tripAnalysis && (
+      {(state === 'STOPPED' || isSlowdown) && tripAnalysis && (
         <div
           className="b2b-card"
           style={{
-            background: 'linear-gradient(180deg, #fef2f2 0%, #ffffff 100%)',
-            border: '2px solid #ef4444',
-            boxShadow: '0 4px 12px rgba(239, 68, 68, 0.12)',
+            background: state === 'STOPPED'
+              ? 'linear-gradient(180deg, #fef2f2 0%, #ffffff 100%)'
+              : 'linear-gradient(180deg, #fffbeb 0%, #ffffff 100%)',
+            border: `2px solid ${state === 'STOPPED' ? '#ef4444' : '#f59e0b'}`,
+            boxShadow: state === 'STOPPED'
+              ? '0 4px 12px rgba(239, 68, 68, 0.12)'
+              : '0 4px 12px rgba(245, 158, 11, 0.12)',
             padding: '1.25rem',
           }}
         >
           {/* Header Row */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem', borderBottom: '1px solid #fee2e2', paddingBottom: '0.75rem' }}>
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: '0.75rem',
+              borderBottom: `1px solid ${state === 'STOPPED' ? '#fee2e2' : '#fde68a'}`,
+              paddingBottom: '0.75rem',
+            }}
+          >
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
               <div
                 style={{
-                  background: '#fee2e2',
+                  background: state === 'STOPPED' ? '#fee2e2' : '#fef3c7',
                   padding: '0.45rem',
                   borderRadius: 8,
                   display: 'flex',
@@ -339,16 +456,29 @@ export const LiveView: React.FC<LiveViewProps> = ({
                   justifyContent: 'center',
                 }}
               >
-                <Cpu size={22} color="#dc2626" />
+                {state === 'STOPPED' ? (
+                  <Cpu size={22} color="#dc2626" />
+                ) : (
+                  <Activity size={22} color="#d97706" />
+                )}
               </div>
               <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#dc2626', letterSpacing: '0.5px' }}>
-                    AI ENGINE POST-TRIP ROOT CAUSE ANALYSIS &bull; PERSISTED IN DATABASE
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                  <span
+                    style={{
+                      fontSize: '0.75rem',
+                      fontWeight: 800,
+                      color: state === 'STOPPED' ? '#dc2626' : '#b45309',
+                      letterSpacing: '0.5px',
+                    }}
+                  >
+                    {state === 'STOPPED'
+                      ? 'AI ENGINE POST-TRIP ROOT CAUSE ANALYSIS • PERSISTED IN DATABASE'
+                      : 'AI CLOSED-LOOP SPEED MITIGATION & DIAGNOSTICS (50% SPEED)'}
                   </span>
                   <span
                     style={{
-                      background: '#dcfce7',
+                      background: state === 'STOPPED' ? '#dcfce7' : '#ecfdf5',
                       color: '#15803d',
                       padding: '0.1rem 0.5rem',
                       borderRadius: 4,
@@ -359,20 +489,64 @@ export const LiveView: React.FC<LiveViewProps> = ({
                     {tripAnalysis.confidence_pct}% CONFIDENCE
                   </span>
                 </div>
-                <div style={{ fontSize: '1.15rem', fontWeight: 800, color: '#991b1b', marginTop: '0.2rem' }}>
+                <div
+                  style={{
+                    fontSize: '1.15rem',
+                    fontWeight: 800,
+                    color: state === 'STOPPED' ? '#991b1b' : '#92400e',
+                    marginTop: '0.2rem',
+                  }}
+                >
                   {tripAnalysis.primary_cause}
                 </div>
               </div>
             </div>
 
-            <div style={{ textAlign: 'right', fontSize: '0.75rem', color: '#64748b' }}>
-              <div>Category: <strong style={{ color: '#1e293b' }}>{tripAnalysis.fault_category}</strong></div>
-              <div>Trigger Layer: <strong className="font-mono" style={{ color: '#dc2626' }}>{tripAnalysis.layer_caused}</strong></div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+              <div style={{ textAlign: 'right', fontSize: '0.75rem', color: '#64748b' }}>
+                <div>Category: <strong style={{ color: '#1e293b' }}>{tripAnalysis.fault_category}</strong></div>
+                <div>Trigger Layer: <strong className="font-mono" style={{ color: state === 'STOPPED' ? '#dc2626' : '#d97706' }}>{tripAnalysis.layer_caused}</strong></div>
+              </div>
+              {state === 'STOPPED' && onReset && (
+                <button
+                  onClick={onReset}
+                  disabled={isActionLoading}
+                  style={{
+                    padding: '0.45rem 0.9rem',
+                    borderRadius: 6,
+                    fontSize: '0.78rem',
+                    fontWeight: 700,
+                    background: '#10b981',
+                    color: '#ffffff',
+                    border: 'none',
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.4rem',
+                    boxShadow: '0 2px 4px rgba(16,185,129,0.3)',
+                  }}
+                  title="Acknowledge fault and clear safety lockout"
+                >
+                  <RotateCcw size={14} />
+                  <span>Clear Lockout &amp; Reset</span>
+                </button>
+              )}
             </div>
           </div>
 
           {/* AI Explanation Text */}
-          <div style={{ marginTop: '0.85rem', fontSize: '0.85rem', color: '#334155', lineHeight: '1.5', background: '#ffffff', padding: '0.75rem 1rem', borderRadius: 6, border: '1px solid #f1f5f9' }}>
+          <div
+            style={{
+              marginTop: '0.85rem',
+              fontSize: '0.85rem',
+              color: '#334155',
+              lineHeight: '1.5',
+              background: '#ffffff',
+              padding: '0.75rem 1rem',
+              borderRadius: 6,
+              border: `1px solid ${state === 'STOPPED' ? '#f1f5f9' : '#fef3c7'}`,
+            }}
+          >
             <strong>AI Engineering Diagnostics:</strong> {tripAnalysis.explanation}
           </div>
 
@@ -387,17 +561,31 @@ export const LiveView: React.FC<LiveViewProps> = ({
               }}
             >
               <div style={{ background: '#f8fafc', padding: '0.6rem 0.75rem', borderRadius: 6, border: '1px solid #e2e8f0' }}>
-                <div style={{ fontSize: '0.68rem', color: '#64748b', fontWeight: 600 }}>ANOMALY SCORE AT TRIP</div>
-                <div className="font-mono" style={{ fontSize: '1.1rem', fontWeight: 800, color: '#dc2626', marginTop: '0.2rem' }}>
+                <div style={{ fontSize: '0.68rem', color: '#64748b', fontWeight: 600 }}>
+                  {state === 'STOPPED' ? 'ANOMALY SCORE AT TRIP' : 'ANOMALY SCORE AT SLOWDOWN'}
+                </div>
+                <div
+                  className="font-mono"
+                  style={{
+                    fontSize: '1.1rem',
+                    fontWeight: 800,
+                    color: state === 'STOPPED' ? '#dc2626' : '#d97706',
+                    marginTop: '0.2rem',
+                  }}
+                >
                   {tripAnalysis.forensics.anomaly_score?.toFixed(4) ?? '—'}
                 </div>
                 <div style={{ fontSize: '0.65rem', color: '#94a3b8' }}>
-                  Threshold Cutoff: {Number(tripAnalysis.forensics.critical_threshold ?? 0.70).toFixed(2)}
+                  {state === 'STOPPED'
+                    ? `Critical Cutoff: ${Number(tripAnalysis.forensics.critical_threshold ?? 0.70).toFixed(2)}`
+                    : `Warning Threshold: ${Number(tripAnalysis.forensics.warn_threshold ?? 0.45).toFixed(2)}`}
                 </div>
               </div>
 
               <div style={{ background: '#f8fafc', padding: '0.6rem 0.75rem', borderRadius: 6, border: '1px solid #e2e8f0' }}>
-                <div style={{ fontSize: '0.68rem', color: '#64748b', fontWeight: 600 }}>TRIP VIBRATION ACCELERATION</div>
+                <div style={{ fontSize: '0.68rem', color: '#64748b', fontWeight: 600 }}>
+                  {state === 'STOPPED' ? 'TRIP VIBRATION' : 'DISTURBANCE VIBRATION'}
+                </div>
                 <div className="font-mono" style={{ fontSize: '1.1rem', fontWeight: 800, color: '#0284c7', marginTop: '0.2rem' }}>
                   {tripAnalysis.forensics.rms_g?.toFixed(3) ?? '—'} g RMS
                 </div>
@@ -417,7 +605,9 @@ export const LiveView: React.FC<LiveViewProps> = ({
               </div>
 
               <div style={{ background: '#f8fafc', padding: '0.6rem 0.75rem', borderRadius: 6, border: '1px solid #e2e8f0' }}>
-                <div style={{ fontSize: '0.68rem', color: '#64748b', fontWeight: 600 }}>TACHOMETER SPEED DEVIATION</div>
+                <div style={{ fontSize: '0.68rem', color: '#64748b', fontWeight: 600 }}>
+                  {state === 'STOPPED' ? 'TACHOMETER SPEED' : 'MITIGATED TACHOMETER SPEED'}
+                </div>
                 <div className="font-mono" style={{ fontSize: '1.1rem', fontWeight: 800, color: '#1e293b', marginTop: '0.2rem' }}>
                   {tripAnalysis.forensics.measured_rpm?.toFixed(0) ?? 0} RPM
                 </div>
@@ -428,13 +618,42 @@ export const LiveView: React.FC<LiveViewProps> = ({
             </div>
           )}
 
-          {/* Actionable Maintenance Checklist */}
-          <div style={{ marginTop: '0.85rem', background: '#fff7ed', padding: '0.75rem 1rem', borderRadius: 6, border: '1px solid #fed7aa' }}>
-            <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#9a3412', display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.35rem' }}>
-              <Wrench size={14} />
-              <span>AI Corrective Action Checklist (Complete before resetting safety lockout):</span>
+          {/* Actionable Maintenance & Stabilization Checklist */}
+          <div
+            style={{
+              marginTop: '0.85rem',
+              background: state === 'STOPPED' ? '#fff7ed' : '#f0fdf4',
+              padding: '0.75rem 1rem',
+              borderRadius: 6,
+              border: `1px solid ${state === 'STOPPED' ? '#fed7aa' : '#bbf7d0'}`,
+            }}
+          >
+            <div
+              style={{
+                fontSize: '0.75rem',
+                fontWeight: 700,
+                color: state === 'STOPPED' ? '#9a3412' : '#166534',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.4rem',
+                marginBottom: '0.35rem',
+              }}
+            >
+              {state === 'STOPPED' ? <Wrench size={14} /> : <CheckCircle2 size={14} />}
+              <span>
+                {state === 'STOPPED'
+                  ? 'AI Corrective Action Checklist (Complete before resetting safety lockout):'
+                  : 'AI Active Stabilization Guidelines (Operating at Mitigated 50% Speed):'}
+              </span>
             </div>
-            <div style={{ fontSize: '0.8rem', color: '#7c2d12', whiteSpace: 'pre-line', lineHeight: '1.4' }}>
+            <div
+              style={{
+                fontSize: '0.8rem',
+                color: state === 'STOPPED' ? '#7c2d12' : '#14532d',
+                whiteSpace: 'pre-line',
+                lineHeight: '1.4',
+              }}
+            >
               {tripAnalysis.recommended_action}
             </div>
           </div>
@@ -447,28 +666,32 @@ export const LiveView: React.FC<LiveViewProps> = ({
           <div className="metric-label">Vibration RMS</div>
           <div className="metric-value-row">
             <span className="metric-value font-mono">
-              {typeof currentRms === 'number' ? currentRms.toFixed(3) : '—'}
+              {typeof currentRms === 'number' ? <SmoothNumber value={currentRms} decimals={3} /> : '—'}
             </span>
             <span className="metric-unit">g</span>
           </div>
-          <div className="metric-footer">Safety Trip Limit: {settings.vibrationLimitG.toFixed(2)} g</div>
+          <div className="metric-footer">
+            Nominal: &le; {dynamicNominalRms.toFixed(2)} g &bull; Trip: {settings.vibrationLimitG.toFixed(2)} g
+          </div>
         </div>
 
         <div className="metric-tile blue">
           <div className="metric-label">Peak Magnitude</div>
           <div className="metric-value-row">
             <span className="metric-value font-mono">
-              {typeof currentPeak === 'number' ? currentPeak.toFixed(3) : '—'}
+              {typeof currentPeak === 'number' ? <SmoothNumber value={currentPeak} decimals={3} /> : '—'}
             </span>
             <span className="metric-unit">g</span>
           </div>
           <div className="metric-footer">
             Peak-to-Peak:{' '}
-            {typeof telemetry?.features?.peak_to_peak === 'number'
-              ? `${telemetry.features.peak_to_peak.toFixed(3)} g`
-              : typeof currentPeak === 'number'
-                ? `${(currentPeak * 1.95).toFixed(3)} g`
-                : '—'}
+            {typeof telemetry?.features?.peak_to_peak === 'number' ? (
+              <SmoothNumber value={telemetry.features.peak_to_peak} decimals={3} suffix=" g" />
+            ) : typeof currentPeak === 'number' ? (
+              <SmoothNumber value={currentPeak * 1.95} decimals={3} suffix=" g" />
+            ) : (
+              '—'
+            )}
           </div>
         </div>
 
@@ -476,7 +699,7 @@ export const LiveView: React.FC<LiveViewProps> = ({
           <div className="metric-label">AI Anomaly Index</div>
           <div className="metric-value-row">
             <span className="metric-value font-mono">
-              {typeof anomalyScore === 'number' ? anomalyScore.toFixed(2) : '—'}
+              {typeof anomalyScore === 'number' ? <SmoothNumber value={anomalyScore} decimals={2} /> : '—'}
             </span>
             <span className="metric-unit">/ 1.00</span>
           </div>
@@ -490,13 +713,13 @@ export const LiveView: React.FC<LiveViewProps> = ({
           <div className="metric-label">Measured Tachometer</div>
           <div className="metric-value-row">
             <span className="metric-value font-mono">
-              {typeof measuredRpm === 'number' ? measuredRpm.toFixed(0) : '—'}
+              {typeof measuredRpm === 'number' ? <SmoothNumber value={measuredRpm} decimals={0} /> : '—'}
             </span>
             <span className="metric-unit">RPM</span>
           </div>
           <div className="metric-footer">
             Rated: {settings.motorRatedRpm} RPM &bull; Setpoint:{' '}
-            {typeof commandedPct === 'number' ? `${commandedPct.toFixed(0)}%` : '—'}
+            {typeof commandedPct === 'number' ? <SmoothNumber value={commandedPct} decimals={0} suffix="%" /> : '—'}
           </div>
         </div>
 
@@ -504,7 +727,7 @@ export const LiveView: React.FC<LiveViewProps> = ({
           <div className="metric-label">Motor Current</div>
           <div className="metric-value-row">
             <span className="metric-value font-mono">
-              {typeof currentAmps === 'number' ? currentAmps.toFixed(2) : '—'}
+              {typeof currentAmps === 'number' ? <SmoothNumber value={currentAmps} decimals={2} /> : '—'}
             </span>
             <span className="metric-unit">A</span>
           </div>
@@ -550,6 +773,8 @@ export const LiveView: React.FC<LiveViewProps> = ({
               rawScore={rawScore ?? 0}
               warnThreshold={warnThresh}
               criticalThreshold={critThresh}
+              rpm={effectiveRpm}
+              nominalLimit={dynamicNominalRms}
             />
           </div>
 

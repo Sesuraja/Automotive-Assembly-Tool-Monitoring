@@ -177,7 +177,7 @@ class VendorGatewayConfig(Base):
     api_key = Column(String, nullable=True)
     poll_interval_sec = Column(Float, default=1.0)
     station_id = Column(String, default="station-A")
-    mac_filter = Column(String, nullable=True, default="C4:4F:33:18:9A:2B")
+    mac_filter = Column(String, nullable=True, default="")
     is_active = Column(Boolean, default=False)
     last_sync = Column(DateTime, nullable=True)
     last_status = Column(String, default="unconfigured")

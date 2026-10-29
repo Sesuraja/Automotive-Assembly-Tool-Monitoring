@@ -5,6 +5,8 @@ interface AnomalyGaugeProps {
   rawScore?: number;
   warnThreshold?: number;
   criticalThreshold?: number;
+  rpm?: number;
+  nominalLimit?: number;
 }
 
 export const AnomalyGauge: React.FC<AnomalyGaugeProps> = ({
@@ -12,6 +14,8 @@ export const AnomalyGauge: React.FC<AnomalyGaugeProps> = ({
   rawScore = 0,
   warnThreshold = 0.45,
   criticalThreshold = 0.70,
+  rpm,
+  nominalLimit,
 }) => {
   const size = 200;
   const strokeWidth = 14;
@@ -96,7 +100,11 @@ export const AnomalyGauge: React.FC<AnomalyGaugeProps> = ({
       <div className="b2b-card-header">
         <div>
           <div className="b2b-card-title">AI Anomaly Detection Score</div>
-          <div className="b2b-card-subtitle">Calibrated probability index [0.00 – 1.00]</div>
+          <div className="b2b-card-subtitle">
+            {rpm && rpm > 50
+              ? `Speed-Calibrated ISO 10816 • ${Math.round(rpm)} RPM${nominalLimit !== undefined ? ` (Nominal: ≤ ${nominalLimit.toFixed(2)}g)` : ''}`
+              : 'Calibrated probability index [0.00 – 1.00]'}
+          </div>
         </div>
       </div>
 

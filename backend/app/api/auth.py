@@ -10,9 +10,12 @@ from backend.app.core.security import verify_password, create_access_token, get_
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
+from sqlalchemy import func
+
 @router.post("/login", response_model=TokenResponse)
 def login(login_req: UserLoginRequest, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.username == login_req.username).first()
+    req_username = (login_req.username or "").strip()
+    user = db.query(User).filter(func.lower(User.username) == req_username.lower()).first()
     if not user or not verify_password(login_req.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -39,7 +42,8 @@ def login(login_req: UserLoginRequest, db: Session = Depends(get_db)):
 
 @router.get("/me", response_model=UserProfileResponse)
 def get_me(username: str = "admin", db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.username == username).first()
+    target_name = (username or "admin").strip().lower()
+    user = db.query(User).filter(func.lower(User.username) == target_name).first()
     if not user:
         # Fallback to first user in db or standard admin
         user = db.query(User).first()

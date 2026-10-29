@@ -196,16 +196,20 @@ class DecisionEngine:
                 speed_dev_exceeded = True
 
         # Genuine vibration disturbance condition:
-        # Dynamically scaled against the tool's rated speed (ISO 10816/20816) and configured vibration limit
-        rated_rpm = float(getattr(self, "motor_rated_rpm", 1500.0))
-        speed_factor = float(math.sqrt(max(500.0, rated_rpm) / 1500.0))
-        disturbed_rms_ref = max(0.12, min(self.hard_limit_rms * 0.45, 0.22 * speed_factor))
-        disturbed_peak_ref = disturbed_rms_ref * 2.25
+        # Standard industrial machinery threshold (ISO 10816 / 20816 Zone B/C boundary is 0.28g - 0.35g RMS)
+        disturbed_rms_ref = 0.35
+        disturbed_peak_ref = 0.85
 
-        is_vibration_disturbed = (rms > disturbed_rms_ref or peak > disturbed_peak_ref or hard_rms_exceeded or hard_peak_exceeded)
+        is_vibration_disturbed = (
+            rms >= disturbed_rms_ref
+            or peak >= disturbed_peak_ref
+            or hard_rms_exceeded
+            or hard_peak_exceeded
+            or anomaly_score >= self.warn_threshold
+        )
 
-        ai_critical = (anomaly_score >= self.critical_threshold and is_vibration_disturbed)
-        ai_warn = (anomaly_score >= self.warn_threshold and is_vibration_disturbed)
+        ai_critical = (anomaly_score >= self.critical_threshold or rms >= 0.70 or hard_rms_exceeded or hard_peak_exceeded)
+        ai_warn = (anomaly_score >= self.warn_threshold or is_vibration_disturbed)
 
         # Update anomaly persistence counters
         if ai_critical or hard_rms_exceeded or hard_peak_exceeded or speed_dev_exceeded:
@@ -306,8 +310,33 @@ class DecisionEngine:
 
         # --- STAGE 1: Currently in NORMAL operation ---
         if self.state == "NORMAL":
+            if hard_rms_exceeded or hard_peak_exceeded or (rms >= 0.70 and anomaly_score >= self.critical_threshold):
+                # Severe / Catastrophic Chatter Trip -> Immediate Safety STOP
+                if self.motor_trip_mode == "MANUAL":
+                    self.state = "WARNING"
+                    self.indicator_light = "AMBER"
+                    self.last_decision_reason = (
+                        f"Critical Vibration Disturbance Alert (RMS {rms:.2f}g, Score {anomaly_score:.2f}). "
+                        f"Manual stop required by safety policy."
+                    )
+                    self.last_layer_caused = layer_cause
+                    return self.state, self.indicator_light, self.commanded_speed_pct, self.last_decision_reason, self.last_layer_caused
+                else:
+                    self.state = "STOPPED"
+                    self.indicator_light = "RED"
+                    self.commanded_speed_pct = 0.0
+                    self.trip_timestamp = datetime.utcnow()
+                    self.stage1_high_start = None
+                    self.stage2_high_start = None
+                    self.last_decision_reason = (
+                        f"Severe Vibration Chatter Trip: Excessive disturbance detected (RMS {rms:.2f}g, Score {anomaly_score:.2f}). "
+                        f"Motor commanded to immediate STOP (0 RPM) to prevent mechanical failure."
+                    )
+                    self.last_layer_caused = layer_cause
+                    return self.state, self.indicator_light, self.commanded_speed_pct, self.last_decision_reason, self.last_layer_caused
+
             if is_high_disturbance:
-                # FIRST ACTION: Immediately reduce speed to 50%!
+                # Moderate disturbance -> FIRST ACTION: Immediately reduce speed to 50%!
                 self.state = "REDUCED_SPEED"
                 self.indicator_light = "AMBER"
                 self.commanded_speed_pct = self.reduced_speed_pct
