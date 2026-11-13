@@ -1,7 +1,7 @@
 import os
 import json
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, List, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
@@ -107,7 +107,7 @@ def stop_recording(name: str = "Recorded Session", db: Session = Depends(get_db)
         sample_count=len(data),
         duration_sec=round(len(data) * 0.1, 1),
         file_path=file_path,
-        created_at=datetime.utcnow()
+        created_at=datetime.now(timezone.utc).replace(tzinfo=None)
     )
     db.add(rec)
     db.commit()
@@ -201,7 +201,7 @@ def get_database_overview(db: Session = Depends(get_db)):
 
     return {
         "status": "online",
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
         "tables": {
             "recordings": {"count": recordings_count, "description": "Training & Validation Datasets"},
             "features": {"count": features_count, "description": "Extracted Vibration FFT & Time-Domain Features"},
@@ -257,7 +257,7 @@ def create_database_feature(payload: FeatureRecordCreateRequest, db: Session = D
     feat = FeatureRecord(
         station_id=payload.station_id,
         device_id=payload.device_id,
-        ts=datetime.utcnow(),
+        ts=datetime.now(timezone.utc).replace(tzinfo=None),
         rms=payload.rms,
         peak=payload.peak,
         peak_to_peak=round(payload.peak * 1.95, 4),

@@ -300,9 +300,9 @@ async def ingest_ble_gateway_telemetry(
 
     # Assemble hardware-agnostic IngestPayload
     motor_info = MotorData(
-        commanded_pct=payload.motor_commanded_pct or 100.0,
-        measured_rpm=payload.motor_rpm or 2980.0,
-        current_amps=payload.motor_current_a or 4.2
+        commanded_pct=payload.motor_commanded_pct or 0.0,
+        measured_rpm=payload.motor_rpm or 0.0,
+        current_amps=payload.motor_current_a or 0.0
     )
 
     ingest_contract = IngestPayload(
@@ -855,7 +855,7 @@ def update_vendor_gateway_config(
     cfg.station_id = payload.station_id
     cfg.mac_filter = payload.mac_filter
     cfg.is_active = payload.is_active
-    cfg.updated_at = datetime.utcnow()
+    cfg.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
     cfg.last_status = "configured" if payload.api_url else "unconfigured"
 
     db.commit()
@@ -893,7 +893,7 @@ def reset_vendor_gateway_to_env(db: Session = Depends(get_db)):
     cfg.station_id = "station-A"
     cfg.mac_filter = ""
     cfg.is_active = True
-    cfg.updated_at = datetime.utcnow()
+    cfg.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
     cfg.last_status = "configured"
     cfg.last_error = None
 
@@ -1081,38 +1081,15 @@ async def trigger_vendor_gateway_sync(db: Session = Depends(get_db)):
                                 except (ValueError, TypeError):
                                     pass
 
-                        # Extract raw accelerometer frames from Type 32 advertisement payloads (data1 hex)
-                        if (t == 32 or "data1" in item) and item.get("data1"):
-                            hex_str = str(item["data1"]).strip()
-                            try:
-                                raw_b = bytes.fromhex(hex_str)
-                                if len(raw_b) >= 6:
-                                    if b"\xaa\xfe" in raw_b and len(raw_b) >= 14:
-                                        idx = raw_b.find(b"\xaa\xfe")
-                                        tail = raw_b[idx+2:]
-                                        if len(tail) >= 6:
-                                            x, y, z = struct.unpack(">3h", tail[-6:])
-                                            gx, gy, gz = x / 1000.0, y / 1000.0, z / 1000.0
-                                            # Detrend 1g gravity from dominant static axis
-                                            if abs(abs(gy) - 1.0) < 0.35:
-                                                gy = gy - (1.0 if gy > 0 else -1.0)
-                                            elif abs(abs(gz) - 1.0) < 0.35:
-                                                gz = gz - (1.0 if gz > 0 else -1.0)
-                                            elif abs(abs(gx) - 1.0) < 0.35:
-                                                gx = gx - (1.0 if gx > 0 else -1.0)
-                                            triaxial_candidates.append((dmac, [round(gx, 4), round(gy, 4), round(gz, 4)], float(rssi or -70.0), item))
-                                    else:
-                                        x, y, z = struct.unpack(">3h", raw_b[-6:])
-                                        gx, gy, gz = x / 1000.0, y / 1000.0, z / 1000.0
-                                        if max(abs(gx), abs(gy), abs(gz)) < 8.0:
-                                            triaxial_candidates.append((dmac, [round(gx, 4), round(gy, 4), round(gz, 4)], float(rssi or -70.0), item))
-                            except Exception:
-                                pass
-
-                        # Direct acceleration axes if decoded
+                        # Direct acceleration axes if decoded by physical sensor or gateway
                         if "x" in item and "y" in item:
                             try:
                                 triaxial_candidates.append((dmac, [float(item.get("x", 0.0)), float(item.get("y", 0.0)), float(item.get("z", 0.0))], float(rssi or -70.0), item))
+                            except (ValueError, TypeError):
+                                pass
+                        elif "acc_x_g" in item and "acc_y_g" in item:
+                            try:
+                                triaxial_candidates.append((dmac, [float(item.get("acc_x_g", 0.0)), float(item.get("acc_y_g", 0.0)), float(item.get("acc_z_g", 0.0))], float(rssi or -70.0), item))
                             except (ValueError, TypeError):
                                 pass
 
@@ -1220,6 +1197,7 @@ async def trigger_vendor_gateway_sync(db: Session = Depends(get_db)):
                         if x_val is not None or y_val is not None:
                             samples = [float(x_val or 0.0), float(y_val or 0.0), float(z_val or 0.0)]
 
+                    features_obj = None
                     # Check for precomputed vibration features if host provided them
                     feat_source = content.get("features") if isinstance(content.get("features"), dict) else content
                     if any(k in feat_source for k in ["rms", "rms_g", "vibration_rms"]):
@@ -1229,10 +1207,10 @@ async def trigger_vendor_gateway_sync(db: Session = Depends(get_db)):
                             rms=rms_v,
                             peak=peak_v,
                             peak_to_peak=round(peak_v * 1.95, 4),
-                            crest_factor=round(peak_v / max(rms_v, 0.001), 2),
-                            kurtosis=float(feat_source.get("kurtosis") or 2.8),
-                            dominant_freq=float(feat_source.get("dominant_freq") or 50.0),
-                            spectral_centroid=round(float(feat_source.get("dominant_freq") or 50.0) * 1.05, 1),
+                            crest_factor=round(peak_v / max(rms_v, 0.001), 2) if rms_v > 0 else 0.0,
+                            kurtosis=float(feat_source.get("kurtosis") or 0.0),
+                            dominant_freq=float(feat_source.get("dominant_freq") or 0.0),
+                            spectral_centroid=float(feat_source.get("spectral_centroid") or 0.0),
                             band_energies={
                                 "0_50Hz": round(rms_v * 0.10, 4),
                                 "50_150Hz": round(rms_v * 0.15, 4),
@@ -1244,6 +1222,8 @@ async def trigger_vendor_gateway_sync(db: Session = Depends(get_db)):
                 # Append freshly extracted live acceleration readings into rolling circular buffer
                 if samples:
                     _live_ble_samples_buffer.extend(samples)
+                else:
+                    _live_ble_samples_buffer.clear()
 
                 # Compute spectral and statistical features directly from live sensor samples
                 if len(_live_ble_samples_buffer) >= 16:
@@ -1267,12 +1247,14 @@ async def trigger_vendor_gateway_sync(db: Session = Depends(get_db)):
                         rms=round(rms_v, 4),
                         peak=round(peak_v, 4),
                         peak_to_peak=round(peak_v * 1.9, 4),
-                        crest_factor=round(peak_v / max(rms_v, 0.001), 2),
-                        kurtosis=3.0,
-                        dominant_freq=50.0,
-                        spectral_centroid=52.5,
-                        band_energies={"0_50Hz": round(rms_v * 0.1, 4), "50_150Hz": round(rms_v * 0.2, 4), "150_300Hz": round(rms_v * 0.5, 4), "300_500Hz": round(rms_v * 0.2, 4)}
+                        crest_factor=round(peak_v / max(rms_v, 0.001), 2) if rms_v > 0 else 0.0,
+                        kurtosis=0.0,
+                        dominant_freq=0.0,
+                        spectral_centroid=0.0,
+                        band_energies={"0_50Hz": 0.0, "50_150Hz": 0.0, "150_300Hz": 0.0, "300_500Hz": 0.0}
                     )
+                else:
+                    features_obj = None
 
                 # Sensor metadata extracted from live BLE frames
                 battery_pct = round((sum(vbatt_vals) / len(vbatt_vals) / 3300.0) * 100, 1) if vbatt_vals else 0.0
@@ -1281,24 +1263,20 @@ async def trigger_vendor_gateway_sync(db: Session = Depends(get_db)):
                 device_id_val = active_dmac or gmac or "304A2657BF44"
                 station_id_val = cfg.station_id if cfg else "station-A"
 
-                # Dynamic Motor RPM and drive status - sourced from station state & configured settings
-                from backend.app.models.schema import Station
-                from backend.app.api.vendor_motor_api import get_dynamic_motor_rated_rpm
-                from backend.app.core.decision_engine import get_decision_engine
-                st_obj = db.query(Station).filter(Station.id == station_id_val).first() if db else None
-                st_state = st_obj.state if st_obj else "NORMAL"
-                commanded_pct = float(st_obj.commanded_speed_pct if st_obj and st_obj.commanded_speed_pct is not None else 100.0)
-                rated_rpm = get_dynamic_motor_rated_rpm(get_decision_engine(station_id_val))
-                if st_state == "STOPPED" or commanded_pct <= 0:
-                    rpm = 0.0
-                    commanded_pct = 0.0
-                    current_amps = 0.0
-                elif st_state in ["REDUCED_SPEED", "WARNING"] or commanded_pct <= 55.0:
-                    rpm = round(rated_rpm * 0.5, 1)
-                    current_amps = 2.1
-                else:
-                    rpm = round(rated_rpm, 1)
-                    current_amps = round(4.2 * (commanded_pct / 100.0), 2)
+                # Motor telemetry strictly from hardware API - never fabricate RPM or current if missing
+                rpm = 0.0
+                current_amps = 0.0
+                commanded_pct = 0.0
+                if isinstance(content, dict):
+                    if "motor" in content and isinstance(content["motor"], dict):
+                        m = content["motor"]
+                        rpm = float(m.get("measured_rpm") or m.get("rpm") or 0.0)
+                        current_amps = float(m.get("current_amps") or m.get("amps") or 0.0)
+                        commanded_pct = float(m.get("commanded_pct") or 0.0)
+                    elif "motor_rpm" in content or "rpm" in content:
+                        rpm = float(content.get("motor_rpm") or content.get("rpm") or 0.0)
+                        current_amps = float(content.get("motor_current_a") or content.get("current_amps") or 0.0)
+                        commanded_pct = float(content.get("motor_commanded_pct") or content.get("commanded_pct") or 0.0)
 
                 # Ingest through feature extractor and dual-layer safety engine
                 motor_info = MotorData(commanded_pct=commanded_pct, measured_rpm=rpm, current_amps=current_amps)
@@ -1322,7 +1300,7 @@ async def trigger_vendor_gateway_sync(db: Session = Depends(get_db)):
                         IngestionService.latest_readings_by_device[sf] = IngestionService.latest_reading
 
                 if cfg:
-                    cfg.last_sync = datetime.utcnow()
+                    cfg.last_sync = datetime.now(timezone.utc).replace(tzinfo=None)
                     cfg.last_status = "connected"
                     cfg.last_error = None
                     cfg.packets_received += 1
@@ -1575,7 +1553,7 @@ async def vendor_gateway_inbound_webhook(
     # Update vendor gateway stats in DB
     cfg = db.query(VendorGatewayConfig).filter(VendorGatewayConfig.id == "default-vendor-gateway").first()
     if cfg:
-        cfg.last_sync = datetime.utcnow()
+        cfg.last_sync = datetime.now(timezone.utc).replace(tzinfo=None)
         cfg.packets_received += 1
         cfg.last_status = "connected"
         db.commit()

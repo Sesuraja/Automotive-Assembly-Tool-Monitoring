@@ -5,7 +5,7 @@ from pydantic import BaseModel
 from backend.app.database import get_db
 from backend.app.core.security import require_role
 from backend.app.services.database_maintenance_service import DatabaseMaintenanceService
-from backend.app.core.ai_diagnostics import test_gemini_connection
+from backend.app.core.ai_diagnostics import get_ai_engine_status
 from backend.app.models.schema import SystemSetting
 
 router = APIRouter(prefix="/database", tags=["Database & AI Maintenance"])
@@ -99,6 +99,6 @@ def get_ai_status(
     current_user: dict = Depends(require_role(["Admin", "Engineer", "Operator"]))
 ):
     """
-    Tests live connection to Google Gemini AI service and verifies active production model.
+    Tests status and operational readiness of the Autonomous AI diagnostics engine.
     """
-    return test_gemini_connection()
+    return get_ai_engine_status()

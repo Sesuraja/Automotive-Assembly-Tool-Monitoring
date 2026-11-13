@@ -44,8 +44,8 @@ export const SimulatorDeck: React.FC<SimulatorDeckProps> = ({ simState, telemetr
   const activeVib = telemetry?.features?.rms ?? liveReading?.vibration_rms ?? liveReading?.rms_g ?? 0;
   const activePeak = telemetry?.features?.peak ?? liveReading?.peak_g ?? liveReading?.features?.peak ?? 0;
   const activeRpm = telemetry?.measured_rpm ?? liveReading?.measured_rpm ?? 0;
-  const activeState = telemetry?.state ?? liveReading?.state ?? (liveReading?.status === 'OFF' ? 'STOPPED' : liveReading?.status === 'SLOW' ? 'REDUCED_SPEED' : 'NORMAL');
-  const activeLight = telemetry?.indicator_light ?? liveReading?.indicator_light ?? (activeState === 'STOPPED' ? 'RED' : activeState === 'REDUCED_SPEED' ? 'AMBER' : 'GREEN');
+  const activeState = telemetry?.state ?? liveReading?.state ?? 'NORMAL';
+  const activeLight = telemetry?.indicator_light ?? liveReading?.indicator_light ?? (activeState === 'STOPPED' ? 'RED' : (activeState === 'REDUCED_SPEED' || activeState === 'WARNING') ? 'AMBER' : 'GREEN');
   const activeBattery = telemetry?.battery_pct ? ((telemetry.battery_pct / 100) * 3300).toFixed(0) : (liveReading?.vbatt ?? 0);
   const activeHealth = telemetry?.ai_health?.health_index_pct ?? (telemetry || liveReading ? (activeState === 'NORMAL' ? 100.0 : activeState === 'REDUCED_SPEED' ? 70.0 : 30.0) : 0);
   const activeTemp = telemetry?.temperature ?? liveReading?.temp ?? liveReading?.temperature ?? 0;

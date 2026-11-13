@@ -114,7 +114,6 @@ Industrial, hardware-agnostic edge monitoring platform for automotive powertrain
    ```bash
    cp .env.example .env
    ```
-   *(Optional)* Add your Google Gemini API key to `.env` to enable AI-assisted root-cause trip analyses.
 
 3. **Install Python backend dependencies**:
    ```bash

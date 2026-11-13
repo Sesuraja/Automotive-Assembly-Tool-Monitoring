@@ -2,17 +2,17 @@ services:
   db:
     image: postgres:16-alpine
     container_name: tool_monitor_db
-    restart: always
+    restart: unless-stopped
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgrespassword
-      POSTGRES_DB: tool_monitor
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgrespassword}
+      POSTGRES_DB: ${POSTGRES_DB:-tool_monitor}
     ports:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -22,10 +22,12 @@ services:
       context: .
       dockerfile: Dockerfile.backend
     container_name: tool_monitor_api
-    restart: always
+    restart: unless-stopped
     environment:
-      - DATABASE_URL=postgresql://postgres:postgrespassword@db:5432/tool_monitor
-      - SECRET_KEY=super-secret-jwt-key-auto-tool-monitoring-2026
+      - DATABASE_URL=${DATABASE_URL:-postgresql://postgres:postgrespassword@db:5432/tool_monitor}
+      - SECRET_KEY=${SECRET_KEY:-super-secret-jwt-key-auto-tool-monitoring-2026}
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000,http://localhost:8000,http://localhost:5173}
+      - ALLOW_DEMO_UNAUTHENTICATED=${ALLOW_DEMO_UNAUTHENTICATED:-false}
     ports:
       - "8000:8000"
     depends_on:
@@ -39,7 +41,7 @@ services:
       context: .
       dockerfile: Dockerfile.frontend
     container_name: tool_monitor_frontend
-    restart: always
+    restart: unless-stopped
     ports:
       - "3000:80"
     depends_on:

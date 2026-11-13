@@ -38,10 +38,11 @@ class VirtualMotor:
     def set_rated_rpm(self, rated_rpm: float):
         """Dynamically updates the default/rated RPM whenever configured in Settings."""
         val = max(100.0, float(rated_rpm))
-        self.max_rpm = val
         self.rated_rpm = val
+        if self.max_rpm < val:
+            self.max_rpm = val
         if not self.is_stalled:
-            self.current_rpm = (self.commanded_pct / 100.0) * self.max_rpm
+            self.current_rpm = (self.commanded_pct / 100.0) * self.rated_rpm
 
     def update(self, dt: float, commanded_pct: float):
         if self.is_stalled or commanded_pct == 0.0:
@@ -49,7 +50,8 @@ class VirtualMotor:
             self.current_rpm = 0.0
             return
         self.commanded_pct = max(0.0, min(100.0, commanded_pct))
-        target_rpm = (self.commanded_pct / 100.0) * self.max_rpm
+        target_base = getattr(self, "rated_rpm", self.max_rpm)
+        target_rpm = min(self.max_rpm, (self.commanded_pct / 100.0) * target_base)
         # First-order response
         alpha = dt / (self.time_constant + dt)
         self.current_rpm += alpha * (target_rpm - self.current_rpm)

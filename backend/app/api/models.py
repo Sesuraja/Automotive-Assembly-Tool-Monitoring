@@ -50,6 +50,7 @@ def train_new_model(
 from fastapi.responses import FileResponse
 import os
 import time
+import inspect
 from typing import Optional
 from backend.app.core.feature_extractor import extract_features, features_to_vector
 
@@ -181,11 +182,20 @@ def test_model_inference(
     from backend.app.api.vendor_motor_api import get_live_vibration
     live_vib = get_live_vibration()
     
-    rms_val = float(live_vib.get("rms_g") or live_vib.get("rms") or 0.48)
+    if inspect.iscoroutine(live_vib):
+        import asyncio
+        try:
+            live_vib = asyncio.run(live_vib)
+        except Exception:
+            live_vib = {}
+    elif not isinstance(live_vib, dict):
+        live_vib = {}
+
+    rms_val = float(live_vib.get("rms_g") or live_vib.get("rms") or 0.0)
     peak_val = float(live_vib.get("peak_g") or live_vib.get("peak") or (rms_val * 1.414))
-    crest_val = float(live_vib.get("crest_factor") or (peak_val / max(rms_val, 0.001)))
-    kurt_val = float(live_vib.get("kurtosis") or 3.02)
-    rpm_val = float(live_vib.get("measured_rpm") or 1500.0)
+    crest_val = float(live_vib.get("crest_factor") or (peak_val / max(rms_val, 0.001) if rms_val > 0 else 0.0))
+    kurt_val = float(live_vib.get("kurtosis") or 0.0)
+    rpm_val = float(live_vib.get("measured_rpm") or 0.0)
     dom_freq = round((rpm_val / 60.0) * 13.33, 1) if rpm_val > 15.0 else 0.0
 
     feat_dict = {

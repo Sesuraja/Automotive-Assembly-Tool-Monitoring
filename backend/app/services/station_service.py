@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Any, Optional
 from sqlalchemy.orm import Session
 from backend.app.core.decision_engine import get_decision_engine
@@ -12,7 +12,7 @@ class StationService:
         reset_all_decision_engines(operator=operator, notes=notes)
         engine = get_decision_engine(station_id)
         result = engine.reset(operator=operator, notes=notes)
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
         
         if db:
             for st in db.query(Station).all():
@@ -91,7 +91,7 @@ class StationService:
     async def emergency_stop(station_id: str, operator: str = "Operator", notes: Optional[str] = None, db: Optional[Session] = None) -> Dict[str, Any]:
         engine = get_decision_engine(station_id)
         result = engine.manual_stop(operator=operator, notes=notes)
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
         
         if db:
             for st in db.query(Station).all():

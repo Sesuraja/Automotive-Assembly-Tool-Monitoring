@@ -5,11 +5,15 @@ from sqlalchemy import (
 from sqlalchemy.orm import relationship
 from backend.app.database import Base
 
+def get_utc_now() -> datetime.datetime:
+    """Returns timezone-naive UTC timestamp compatible with SQLite & PostgreSQL."""
+    return datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
+
 class Organization(Base):
     __tablename__ = "orgs"
     id = Column(String, primary_key=True)
     name = Column(String, nullable=False)
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    created_at = Column(DateTime, default=get_utc_now)
     
     plants = relationship("Plant", back_populates="org", cascade="all, delete-orphan")
 
@@ -65,14 +69,14 @@ class User(Base):
     hashed_password = Column(String, nullable=False)
     role = Column(String, default="Operator") # Admin, Engineer, Operator, Viewer
     is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    created_at = Column(DateTime, default=get_utc_now)
 
 class RawWindow(Base):
     __tablename__ = "raw_windows"
     id = Column(Integer, primary_key=True, autoincrement=True)
     device_id = Column(String, index=True, nullable=False)
     station_id = Column(String, index=True, nullable=True)
-    ts = Column(DateTime, index=True, default=datetime.datetime.utcnow)
+    ts = Column(DateTime, index=True, default=get_utc_now)
     seq = Column(Integer, nullable=False)
     sample_rate_hz = Column(Integer, default=1000)
     axes = Column(String, default="xyz")
@@ -83,7 +87,7 @@ class FeatureRecord(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     device_id = Column(String, index=True, nullable=False)
     station_id = Column(String, index=True, nullable=True)
-    ts = Column(DateTime, index=True, default=datetime.datetime.utcnow)
+    ts = Column(DateTime, index=True, default=get_utc_now)
     rms = Column(Float, nullable=False)
     peak = Column(Float, nullable=False)
     peak_to_peak = Column(Float, nullable=True)
@@ -99,7 +103,7 @@ class AnomalyScoreRecord(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     device_id = Column(String, index=True, nullable=False)
     station_id = Column(String, index=True, nullable=True)
-    ts = Column(DateTime, index=True, default=datetime.datetime.utcnow)
+    ts = Column(DateTime, index=True, default=get_utc_now)
     model_version = Column(String, index=True)
     raw_score = Column(Float, nullable=False)
     smoothed_score = Column(Float, nullable=False)
@@ -110,7 +114,7 @@ class DecisionRecord(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     device_id = Column(String, index=True, nullable=False)
     station_id = Column(String, index=True, nullable=True)
-    ts = Column(DateTime, index=True, default=datetime.datetime.utcnow)
+    ts = Column(DateTime, index=True, default=get_utc_now)
     state = Column(String, nullable=False)
     reason = Column(String, nullable=False)
     layer_caused = Column(String, nullable=False) # "FIXED_LIMIT" or "AI_LAYER"
@@ -122,7 +126,7 @@ class MotorTelemetry(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     device_id = Column(String, index=True, nullable=False)
     station_id = Column(String, index=True, nullable=True)
-    ts = Column(DateTime, index=True, default=datetime.datetime.utcnow)
+    ts = Column(DateTime, index=True, default=get_utc_now)
     commanded_pct = Column(Float, nullable=False)
     measured_rpm = Column(Float, nullable=False)
     current_amps = Column(Float, nullable=True)
@@ -131,7 +135,7 @@ class EventRecord(Base):
     __tablename__ = "events"
     id = Column(Integer, primary_key=True, autoincrement=True)
     station_id = Column(String, index=True, nullable=True)
-    ts = Column(DateTime, index=True, default=datetime.datetime.utcnow)
+    ts = Column(DateTime, index=True, default=get_utc_now)
     event_type = Column(String, nullable=False) # TRIP, RESET, DISTURBANCE_ON, DISTURBANCE_OFF, LINK_LOST, SPEED_CHANGE
     details = Column(String, nullable=True)
     operator = Column(String, nullable=True)
@@ -145,7 +149,7 @@ class Recording(Base):
     sample_count = Column(Integer, default=0)
     duration_sec = Column(Float, default=0.0)
     file_path = Column(String, nullable=False)
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    created_at = Column(DateTime, default=get_utc_now)
 
 class MLModelRecord(Base):
     __tablename__ = "models"
@@ -156,7 +160,7 @@ class MLModelRecord(Base):
     thresholds = Column(JSON, nullable=True) # warn_threshold, critical_threshold
     artifact_path = Column(String, nullable=False)
     active_flag = Column(Boolean, default=False)
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    created_at = Column(DateTime, default=get_utc_now)
 
 class AuditLog(Base):
     __tablename__ = "audit_log"
@@ -166,7 +170,7 @@ class AuditLog(Base):
     action = Column(String, nullable=False)
     resource = Column(String, nullable=True)
     details = Column(String, nullable=True)
-    ts = Column(DateTime, index=True, default=datetime.datetime.utcnow)
+    ts = Column(DateTime, index=True, default=get_utc_now)
 
 class VendorGatewayConfig(Base):
     __tablename__ = "vendor_gateways"
@@ -183,14 +187,14 @@ class VendorGatewayConfig(Base):
     last_status = Column(String, default="unconfigured")
     last_error = Column(String, nullable=True)
     packets_received = Column(Integer, default=0)
-    updated_at = Column(DateTime, default=datetime.datetime.utcnow)
+    updated_at = Column(DateTime, default=get_utc_now)
 
 class MotorStopAnalysis(Base):
     __tablename__ = "motor_stop_analyses"
     id = Column(Integer, primary_key=True, autoincrement=True)
     station_id = Column(String, index=True, nullable=False)
     device_id = Column(String, nullable=True)
-    ts = Column(DateTime, index=True, default=datetime.datetime.utcnow)
+    ts = Column(DateTime, index=True, default=get_utc_now)
     primary_cause = Column(String, nullable=False)
     fault_category = Column(String, nullable=False) # TOOL_RESONANCE, BEARING_DEGRADATION, MECHANICAL_JAM, HARD_LIMIT_EXCEEDED, LINK_TIMEOUT, MANUAL_ESTOP
     confidence_pct = Column(Float, nullable=False, default=95.0)
@@ -208,6 +212,4 @@ class SystemSetting(Base):
     __tablename__ = "system_settings"
     key = Column(String, primary_key=True)
     value = Column(Text, nullable=False)
-    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
-
-
+    updated_at = Column(DateTime, default=get_utc_now, onupdate=get_utc_now)

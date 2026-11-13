@@ -784,7 +784,7 @@ export const api = {
     return res.json();
   },
 
-  // Gemini AI Engine Status & Diagnostics
+  // Autonomous AI Engine Status & Diagnostics
   async getAiStatus() {
     const res = await fetch(`${API_BASE}/database/ai-status`, { headers: getHeaders() });
     if (!res.ok) throw new Error('Failed to query AI engine diagnostics');

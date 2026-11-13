@@ -64,8 +64,8 @@ export const MotorDriveVisualizer: React.FC<MotorDriveVisualizerProps> = ({
     return () => cancelAnimationFrame(animId);
   }, [currentRpm]);
   const commandedPct = telemetry?.commanded_speed_pct ?? localReading?.commanded_speed_pct ?? 100;
-  const stationState = telemetry?.state ?? (localReading?.status === 'OFF' ? 'STOPPED' : localReading?.status === 'SLOW' ? 'REDUCED_SPEED' : 'NORMAL');
-  const indicatorLight = telemetry?.indicator_light ?? (localReading?.status === 'OFF' ? 'RED' : localReading?.status === 'SLOW' ? 'AMBER' : 'GREEN');
+  const stationState = telemetry?.state ?? localReading?.state ?? 'NORMAL';
+  const indicatorLight = telemetry?.indicator_light ?? localReading?.indicator_light ?? (stationState === 'STOPPED' ? 'RED' : (stationState === 'REDUCED_SPEED' || stationState === 'WARNING') ? 'AMBER' : 'GREEN');
 
   // Dynamic calculation: Derive nominal rated RPM and max scale from Settings and Measured Tachometer
   const observedRpm = Math.max(currentRpm, localReading?.measured_rpm ?? 0);

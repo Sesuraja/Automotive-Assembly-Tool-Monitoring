@@ -412,7 +412,7 @@ The user interface is an enterprise white-theme SPA built with React 19, TypeScr
 4. **Model Studio (`/settings`)**:
    - Model retraining interface with Confusion Matrix, ROC-AUC score, Precision, Recall, and interactive threshold sliders.
    - SQLite Database maintenance controls (VACUUM, retention policy cleanup, storage space meters).
-   - Google Gemini AI diagnostic engine connectivity check.
+   - Autonomous AI diagnostic engine operational check.
 
 ---
 

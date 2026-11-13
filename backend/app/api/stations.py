@@ -141,7 +141,7 @@ async def reset_station(
         for u in unresolved:
             u.resolved = True
             u.resolved_by = operator
-            u.resolved_at = datetime.datetime.utcnow()
+            u.resolved_at = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
             u.resolution_notes = notes or "Cleared during explicit operator reset."
     except Exception as e:
         print(f"[Reset Resolve Error] {e}")

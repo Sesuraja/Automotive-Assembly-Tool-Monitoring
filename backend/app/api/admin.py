@@ -1,13 +1,21 @@
-from fastapi import APIRouter, Depends
+import datetime
+from typing import Optional, List
+from fastapi import APIRouter, Depends, Query, HTTPException, status
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from backend.app.database import get_db
-from backend.app.models.schema import Organization, Plant, Line, Station, Device, User, AuditLog, SystemSetting
-from backend.app.core.security import require_role
+from backend.app.models.schema import Organization, Plant, Line, Station, Device, User, AuditLog, SystemSetting, MLModelRecord
+from backend.app.core.security import require_role, get_current_user
+from backend.app.core.decision_engine import get_decision_engine, _station_engines
+from backend.app.core.ml_model import get_active_model
 
 router = APIRouter(prefix="/admin", tags=["Administration & Hierarchy"])
 
 @router.get("/hierarchy")
-def get_hierarchy(db: Session = Depends(get_db)):
+def get_hierarchy(
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     orgs = db.query(Organization).all()
     result = []
     for org in orgs:
@@ -25,7 +33,10 @@ def get_hierarchy(db: Session = Depends(get_db)):
     return result
 
 @router.get("/devices")
-def get_devices(db: Session = Depends(get_db)):
+def get_devices(
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     devices = db.query(Device).all()
     return [{
         "id": d.id,
@@ -37,7 +48,10 @@ def get_devices(db: Session = Depends(get_db)):
     } for d in devices]
 
 @router.get("/users")
-def get_users(db: Session = Depends(get_db)):
+def get_users(
+    current_user: dict = Depends(require_role(["Admin"])),
+    db: Session = Depends(get_db)
+):
     users = db.query(User).all()
     return [{
         "id": u.id,
@@ -48,7 +62,11 @@ def get_users(db: Session = Depends(get_db)):
     } for u in users]
 
 @router.get("/audit")
-def get_audit_logs(limit: int = 50, db: Session = Depends(get_db)):
+def get_audit_logs(
+    limit: int = Query(default=50, ge=1, le=1000),
+    current_user: dict = Depends(require_role(["Admin", "Engineer"])),
+    db: Session = Depends(get_db)
+):
     logs = db.query(AuditLog).order_by(AuditLog.ts.desc()).limit(limit).all()
     return [{
         "id": l.id,
@@ -58,13 +76,6 @@ def get_audit_logs(limit: int = 50, db: Session = Depends(get_db)):
         "details": l.details,
         "ts": (l.ts.isoformat() + "Z") if l.ts and not l.ts.isoformat().endswith("Z") else (l.ts.isoformat() if l.ts else None)
     } for l in logs]
-
-from typing import Optional
-from pydantic import BaseModel
-import datetime
-from backend.app.models.schema import MLModelRecord
-from backend.app.core.decision_engine import get_decision_engine, _station_engines
-from backend.app.core.ml_model import get_active_model
 
 class SystemSettingsPayload(BaseModel):
     timezone: Optional[str] = None
@@ -95,6 +106,10 @@ class SystemSettingsPayload(BaseModel):
 
 @router.get("/settings")
 def get_settings(db: Session = Depends(get_db)):
+    """
+    Returns public brand configuration and operational thresholds.
+    Available without auth for UI bootstrap.
+    """
     rows = db.query(SystemSetting).all()
     defaults = {
         "timezone": "UTC",
@@ -124,23 +139,27 @@ def get_settings(db: Session = Depends(get_db)):
 
 @router.post("/settings")
 @router.put("/settings")
-def update_settings(payload: SystemSettingsPayload, db: Session = Depends(get_db)):
+def update_settings(
+    payload: SystemSettingsPayload,
+    current_user: dict = Depends(require_role(["Admin", "Engineer"])),
+    db: Session = Depends(get_db)
+):
+    now_utc = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
     data = payload.model_dump(exclude_unset=True)
     for key, val in data.items():
         if val is not None:
             setting = db.query(SystemSetting).filter(SystemSetting.key == key).first()
             if not setting:
-                setting = SystemSetting(key=key, value=str(val))
+                setting = SystemSetting(key=key, value=str(val), updated_at=now_utc)
                 db.add(setting)
             else:
                 setting.value = str(val)
-                setting.updated_at = datetime.datetime.utcnow()
+                setting.updated_at = now_utc
 
     # 1. Update DecisionEngine runtime safety parameters across all station engines
     target_station = payload.station_id or "station-A"
     target_engine = get_decision_engine(target_station)
     
-    # Update all instantiated engines so policy remains uniform across stations
     for eng in set(list(_station_engines.values()) + [target_engine]):
         if payload.warn_threshold is not None and payload.critical_threshold is not None:
             eng.update_thresholds(
@@ -159,9 +178,19 @@ def update_settings(payload: SystemSettingsPayload, db: Session = Depends(get_db
                 mode=payload.motor_trip_mode,
                 auto_restart=payload.auto_restart_enabled
             )
-            # Reset if switching to MANUAL while engine stopped to avoid stale STOP state
             if payload.motor_trip_mode is not None and str(payload.motor_trip_mode).strip().upper() == "MANUAL":
                 eng.reset(operator="Mode change to MANUAL", notes="Resetting engine state due to manual mode selection")
+
+    # 2. Synchronize virtual rig simulator if running in-process
+    if payload.motor_rated_rpm is not None or payload.motor_max_rpm is not None:
+        try:
+            from simulator.virtual_rig import simulator_rig
+            if payload.motor_rated_rpm is not None:
+                simulator_rig.motor.set_rated_rpm(float(payload.motor_rated_rpm))
+            if payload.motor_max_rpm is not None:
+                simulator_rig.motor.max_rpm = float(payload.motor_max_rpm)
+        except Exception:
+            pass
 
     # 3. Reflect Threshold Tuning to Models (Database MLModelRecord & in-memory active model)
     if payload.warn_threshold is not None or payload.critical_threshold is not None:
@@ -184,7 +213,7 @@ def update_settings(payload: SystemSettingsPayload, db: Session = Depends(get_db
         except Exception:
             pass
 
-    # 3. Comprehensive Audit Log
+    # 4. Comprehensive Audit Log
     detail_parts = [
         f"timezone={payload.timezone}",
         f"station={payload.station_id}",
@@ -197,6 +226,8 @@ def update_settings(payload: SystemSettingsPayload, db: Session = Depends(get_db
         detail_parts.append(f"fft_max={payload.fft_max_freq_hz}Hz")
     if payload.motor_max_rpm is not None:
         detail_parts.append(f"motor_rpm={payload.motor_max_rpm}")
+    if payload.motor_rated_rpm is not None:
+        detail_parts.append(f"motor_rated_rpm={payload.motor_rated_rpm}")
     if payload.warn_threshold is not None:
         detail_parts.append(f"warn_thresh={payload.warn_threshold}")
     if payload.critical_threshold is not None:
@@ -206,14 +237,14 @@ def update_settings(payload: SystemSettingsPayload, db: Session = Depends(get_db
     if payload.auto_restart_enabled is not None:
         detail_parts.append(f"auto_restart={payload.auto_restart_enabled}")
 
+    actor = current_user.get("username", "Admin") if isinstance(current_user, dict) else "Admin"
     audit = AuditLog(
-        username="Admin",
-        action="SETTINGS_UPDATE",
-        resource="Branding, Telemetry Limits & Model Thresholds",
-        details="Updated: " + ", ".join(detail_parts)
+        username=actor,
+        action="UPDATE_SYSTEM_SETTINGS",
+        resource="Settings",
+        details="; ".join(detail_parts)
     )
     db.add(audit)
     db.commit()
 
-    return get_settings(db=db)
-
+    return {"status": "success", "message": "System settings updated and synced across safety layers successfully"}

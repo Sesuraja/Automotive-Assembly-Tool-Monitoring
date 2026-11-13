@@ -501,10 +501,10 @@ void sendBleTelemetryToBackend(float* samples, int sampleCount, float rpm) {
   const rawY = Number(liveStreamReading?.acc_y_g ?? liveStreamReading?.y ?? liveStreamReading?.features?.acc_y ?? 0);
   const rawZ = Number(liveStreamReading?.acc_z_g ?? liveStreamReading?.z ?? liveStreamReading?.features?.acc_z ?? 0);
   const rawRpm = Number(liveStreamReading?.measured_rpm ?? liveStreamReading?.motor?.measured_rpm ?? 0);
-  const rawMotorStatus = String(liveStreamReading?.motor_status ?? liveStreamReading?.status ?? (liveStreamReading ? 'RUNNING' : 'OFF')).toUpperCase();
-  const rawState = String(liveStreamReading?.state ?? (rawMotorStatus === 'OFF' ? 'STOPPED' : rawMotorStatus === 'SLOW' ? 'REDUCED_SPEED' : 'NORMAL')).toUpperCase();
-  const rawLight = String(liveStreamReading?.indicator_light ?? (rawState === 'STOPPED' ? 'RED' : rawState === 'REDUCED_SPEED' ? 'AMBER' : 'GREEN')).toUpperCase();
-  const rawSpeedPct = Number(liveStreamReading?.commanded_speed_pct ?? (rawState === 'STOPPED' ? 0 : rawState === 'REDUCED_SPEED' ? 50 : 100));
+  const rawMotorStatus = String(liveStreamReading?.motor_status ?? liveStreamReading?.status ?? (rawRpm > 0 ? 'RUNNING' : 'IDLE')).toUpperCase();
+  const rawState = String(liveStreamReading?.state ?? 'NORMAL').toUpperCase();
+  const rawLight = String(liveStreamReading?.indicator_light ?? (rawState === 'STOPPED' ? 'RED' : (rawState === 'REDUCED_SPEED' || rawState === 'WARNING') ? 'AMBER' : 'GREEN')).toUpperCase();
+  const rawSpeedPct = Number(liveStreamReading?.commanded_speed_pct ?? (rawState === 'STOPPED' ? 0 : (rawState === 'REDUCED_SPEED' || rawState === 'WARNING') ? 50 : 100));
   const rawScore = Number(liveStreamReading?.anomaly_score ?? liveStreamReading?.smoothed_anomaly_score ?? 0);
   const rawBatt = Number(liveStreamReading?.battery_pct ?? (liveStreamReading?.vbatt ? ((liveStreamReading.vbatt / 3300) * 100) : 0));
   const rawBattMv = Number(liveStreamReading?.vbatt ?? Math.round((rawBatt / 100) * 3300));

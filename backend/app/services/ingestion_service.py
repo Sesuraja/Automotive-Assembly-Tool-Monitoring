@@ -93,7 +93,7 @@ class IngestionService:
         """
         device_id = payload.device_id
         station_id = payload.station_id
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
         
         # 1. Packet Sequence & Loss Tracking
         if device_id not in _device_trackers:
@@ -143,7 +143,8 @@ class IngestionService:
         prev_state = engine.state
         motor_data = payload.motor.model_dump() if payload.motor else None
         target_rated_rpm = _get_dynamic_rated_rpm(engine)
-        measured_rpm = float(payload.motor.measured_rpm) if payload.motor and payload.motor.measured_rpm > 10.0 else target_rated_rpm
+        # Strictly use measured RPM from incoming hardware telemetry; never fabricate or fake RPM if not provided
+        measured_rpm = float(payload.motor.measured_rpm) if (payload.motor and payload.motor.measured_rpm is not None) else 0.0
 
         # 4. Model Inference & Scoring using Active Engine (Speed-Adaptive)
         feat_vector = features_to_vector(features_dict)
@@ -157,9 +158,9 @@ class IngestionService:
 
         rms_val = float(features_dict.get("rms", 0.0))
         peak_val = float(features_dict.get("peak", 0.0))
-        is_tool_stopped = (engine.state == "STOPPED" or (payload.motor and payload.motor.measured_rpm < 15.0 and engine.state == "STOPPED"))
+        is_tool_stopped = (engine.state == "STOPPED" or (payload.motor and payload.motor.measured_rpm < 15.0) or measured_rpm < 15.0)
 
-        if is_tool_stopped:
+        if is_tool_stopped or rms_val == 0.0:
             raw_score = 0.00
             smoothed_score = 0.00
         else:
@@ -197,7 +198,7 @@ class IngestionService:
         # Check if in spinup grace period after an operator reset / restart
         in_spinup_grace = False
         if getattr(engine, "last_reset_time", None):
-            if (datetime.utcnow() - engine.last_reset_time).total_seconds() < 8.0:
+            if (datetime.now(timezone.utc).replace(tzinfo=None) - engine.last_reset_time).total_seconds() < 8.0:
                 in_spinup_grace = True
 
         # If decision engine is not already stopped, check if remote host issued an explicit emergency STOP
@@ -439,21 +440,21 @@ class IngestionService:
         is_stopped = (state == "STOPPED")
         rated_ref = max(100.0, _get_dynamic_rated_rpm(engine))
         actual_cmd_pct = 0.0 if is_stopped else commanded_speed_pct
+
+        # Real telemetry reporting: never fabricate RPM if hardware or API provides none
         if is_stopped:
             actual_measured_rpm = 0.0
-        elif state == "REDUCED_SPEED":
-            base_rpm = payload.motor.measured_rpm if (payload.motor and payload.motor.measured_rpm > 100.0) else rated_ref
-            actual_measured_rpm = round(base_rpm * (commanded_speed_pct / 100.0), 1)
+            actual_current_amps = 0.0
+            actual_motor_status = "OFF"
+        elif payload.motor and payload.motor.measured_rpm is not None and payload.motor.measured_rpm > 0.0:
+            actual_measured_rpm = round(float(payload.motor.measured_rpm), 1)
+            actual_current_amps = round(float(payload.motor.current_amps or 0.0), 2)
+            actual_motor_status = "SLOW" if state in ["REDUCED_SPEED", "WARNING"] else "RUNNING"
         else:
-            actual_measured_rpm = (
-                payload.motor.measured_rpm if (payload.motor and payload.motor.measured_rpm > 0.0) else (
-                    (commanded_speed_pct / 100.0) * rated_ref
-                )
-            )
-        actual_current_amps = 0.0 if is_stopped else (
-            round((payload.motor.current_amps if payload.motor else 4.2) * (commanded_speed_pct / 100.0), 2)
-        )
-        actual_motor_status = "OFF" if is_stopped else ("SLOW" if state == "REDUCED_SPEED" else "RUNNING")
+            # No physical motor data received from hardware API (motor idle/stationary)
+            actual_measured_rpm = 0.0
+            actual_current_amps = 0.0
+            actual_motor_status = "IDLE" if state == "NORMAL" else "OFF"
 
         # Real-time AI Tool Health Prognostics (Speed-Aware)
         ai_health = AIDiagnosticsEngine.calculate_tool_health_index(
@@ -532,7 +533,7 @@ class IngestionService:
         If no packet is received from any active sensor on this station within timeout_sec,
         a safe-state link loss alert is triggered.
         """
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
         last_seen = IngestionService.last_station_packet_time.get(station_id)
 
         # If the station is actively receiving telemetry packets, the station link is 100% healthy!

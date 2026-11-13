@@ -175,14 +175,13 @@ export const App: React.FC = () => {
           const timeStr = formatTime(reading.timestamp || Date.now());
           const rmsVal = Number(reading.rms_g ?? reading.rms ?? reading.features?.rms ?? 0);
           const peakVal = Number(reading.peak_g ?? reading.peak ?? reading.features?.peak ?? 0);
-          const isOff = reading.state === 'STOPPED' || reading.status === 'OFF' || reading.operational_status === 'OFF' || reading.motor_status === 'OFF';
-          const isSlow = reading.state === 'REDUCED_SPEED' || reading.status === 'SLOW' || reading.operational_status === 'SLOW' || reading.motor_status === 'SLOW';
-          const stStr = isOff ? 'STOPPED' : isSlow ? 'REDUCED_SPEED' : (reading.state || 'NORMAL');
-          const lightStr = isOff ? 'RED' : isSlow ? 'AMBER' : (reading.indicator_light || 'GREEN');
-          const cmdPct = isOff ? 0 : isSlow ? 50 : (reading.commanded_speed_pct ?? 100);
-          const configuredRpm = Number(settings.motorRatedRpm || settings.motorMaxRpm || 1500);
-          const rawRpm = Number(reading.measured_rpm ?? (isOff ? 0 : configuredRpm));
-          const actualRpm = isOff ? 0 : isSlow ? Math.round(rawRpm * 0.5) : rawRpm;
+          const stStr = reading.state || 'NORMAL';
+          const isOff = stStr === 'STOPPED';
+          const isSlow = stStr === 'REDUCED_SPEED' || stStr === 'WARNING';
+          const lightStr = reading.indicator_light || (isOff ? 'RED' : isSlow ? 'AMBER' : 'GREEN');
+          const cmdPct = isOff ? 0 : isSlow ? (reading.commanded_speed_pct ?? 50) : (reading.commanded_speed_pct ?? 100);
+          const rawRpm = Number(reading.measured_rpm ?? 0);
+          const actualRpm = isOff ? 0 : rawRpm;
 
           setLatestTelemetry((prev) => {
             if (prev && lastWsPacketTime > 0 && Date.now() - lastWsPacketTime < 2500) return prev;

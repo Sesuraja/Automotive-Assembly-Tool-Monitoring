@@ -1,7 +1,11 @@
 from typing import Dict, Any, Tuple, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 import math
 from backend.app.config import settings
+
+def utc_now() -> datetime:
+    """Returns timezone-naive UTC timestamp for Python 3.12+ deprecation-free time tracking."""
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 class DecisionEngine:
     """
@@ -144,7 +148,7 @@ class DecisionEngine:
                 self.last_decision_reason = "Fixed Limit: Communication link lost (timeout > 1.0s)."
                 self.last_layer_caused = "FIXED_LIMIT"
                 if not self.trip_timestamp:
-                    self.trip_timestamp = datetime.utcnow()
+                    self.trip_timestamp = utc_now()
                 return self.state, self.indicator_light, self.commanded_speed_pct, self.last_decision_reason, self.last_layer_caused
 
         # -------------------------------------------------------------
@@ -182,7 +186,7 @@ class DecisionEngine:
 
             in_spinup_grace = False
             if self.last_reset_time:
-                if (datetime.utcnow() - self.last_reset_time).total_seconds() < 8.0:
+                if (utc_now() - self.last_reset_time).total_seconds() < 8.0:
                     in_spinup_grace = True
 
             is_settling = (
@@ -252,8 +256,8 @@ class DecisionEngine:
             if is_high_disturbance:
                 # AI anomaly score is AGAIN HIGH while operating at reduced speed
                 if self.stage2_high_start is None:
-                    self.stage2_high_start = datetime.utcnow()
-                elapsed_stage2 = (datetime.utcnow() - self.stage2_high_start).total_seconds()
+                    self.stage2_high_start = utc_now()
+                elapsed_stage2 = (utc_now() - self.stage2_high_start).total_seconds()
 
                 if elapsed_stage2 < self.stage_duration_sec:
                     # Anomaly high again at reduced speed; awaiting confirmation persistence before emergency trip
@@ -282,7 +286,7 @@ class DecisionEngine:
                         self.state = "STOPPED"
                         self.indicator_light = "RED"
                         self.commanded_speed_pct = 0.0
-                        self.trip_timestamp = datetime.utcnow()
+                        self.trip_timestamp = utc_now()
                         self.stage1_high_start = None
                         self.stage2_high_start = None
                         self.last_decision_reason = (
@@ -325,7 +329,7 @@ class DecisionEngine:
                     self.state = "STOPPED"
                     self.indicator_light = "RED"
                     self.commanded_speed_pct = 0.0
-                    self.trip_timestamp = datetime.utcnow()
+                    self.trip_timestamp = utc_now()
                     self.stage1_high_start = None
                     self.stage2_high_start = None
                     self.last_decision_reason = (
@@ -384,7 +388,7 @@ class DecisionEngine:
         self.consecutive_critical_count = 0
         self.consecutive_reduced_speed_disturbance = 0
         self.trip_timestamp = None
-        self.last_reset_time = datetime.utcnow()
+        self.last_reset_time = utc_now()
         self.is_manual_lockout = False
         self.last_decision_reason = f"Manual reset executed by {operator}. Restored to NORMAL state."
         self.last_layer_caused = "MANUAL_RESET"
@@ -395,7 +399,7 @@ class DecisionEngine:
             "current_state": self.state,
             "operator": operator,
             "notes": notes,
-            "timestamp": datetime.utcnow()
+            "timestamp": utc_now()
         }
 
     def manual_stop(self, operator: str = "Operator", notes: Optional[str] = None) -> Dict[str, Any]:
@@ -410,14 +414,14 @@ class DecisionEngine:
         self.is_manual_lockout = True
         self.last_decision_reason = f"Manual emergency stop commanded by {operator}."
         self.last_layer_caused = "MANUAL_STOP"
-        self.trip_timestamp = datetime.utcnow()
+        self.trip_timestamp = utc_now()
         
         return {
             "status": "success",
             "current_state": self.state,
             "operator": operator,
             "notes": notes,
-            "timestamp": datetime.utcnow()
+            "timestamp": utc_now()
         }
 
     def update_thresholds(self, warn: float, critical: float, persistence: Optional[int] = None):

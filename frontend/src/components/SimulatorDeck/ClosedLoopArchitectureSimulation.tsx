@@ -49,9 +49,9 @@ export const ClosedLoopArchitectureSimulation: React.FC<ClosedLoopArchitectureSi
   }, [telemetry]);
 
   const currentRpm = telemetry?.measured_rpm ?? localReading?.measured_rpm ?? 0;
-  const commandedPct = telemetry?.commanded_speed_pct ?? (localReading?.status === 'OFF' ? 0 : localReading?.status === 'SLOW' ? 50 : (localReading?.commanded_speed_pct ?? 0));
-  const state = telemetry?.state ?? localReading?.state ?? (localReading?.status === 'OFF' ? 'STOPPED' : localReading?.status === 'SLOW' ? 'REDUCED_SPEED' : 'NORMAL');
-  const indicatorLight = telemetry?.indicator_light ?? localReading?.indicator_light ?? (state === 'STOPPED' ? 'RED' : state === 'REDUCED_SPEED' ? 'AMBER' : 'GREEN');
+  const state = telemetry?.state ?? localReading?.state ?? 'NORMAL';
+  const commandedPct = telemetry?.commanded_speed_pct ?? localReading?.commanded_speed_pct ?? (state === 'STOPPED' ? 0 : state === 'REDUCED_SPEED' ? 50 : 100);
+  const indicatorLight = telemetry?.indicator_light ?? localReading?.indicator_light ?? (state === 'STOPPED' ? 'RED' : (state === 'REDUCED_SPEED' || state === 'WARNING') ? 'AMBER' : 'GREEN');
   const anomalyScore = telemetry?.smoothed_anomaly_score ?? localReading?.smoothed_anomaly_score ?? localReading?.anomaly_score ?? 0;
   const rms = telemetry?.features?.rms ?? localReading?.rms_g ?? localReading?.rms ?? 0;
   const peak = telemetry?.features?.peak ?? localReading?.peak_g ?? localReading?.peak ?? 0;

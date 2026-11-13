@@ -1,6 +1,6 @@
 import os
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from backend.app.database import engine, Base, SessionLocal
 from backend.app.models.schema import (
     Organization, Plant, Line, Station, Device, User, Recording, MLModelRecord, AuditLog
@@ -11,6 +11,9 @@ from backend.app.core.feature_extractor import extract_features, features_to_vec
 from backend.app.config import settings
 from backend.app.core.ml_model import AnomalyModelWrapper, set_active_model
 from backend.app.core.decision_engine import get_decision_engine
+
+def get_utc_now():
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 def init_db_and_seed():
     print("[Seed] Initializing database tables...")
@@ -60,14 +63,17 @@ def init_db_and_seed():
                 device_type="vibration_node",
                 api_key="ble-key-spindle-01-prod",
                 is_active=True,
-                last_seen=datetime.utcnow()
+                last_seen=get_utc_now()
             )
             db.add(device)
             db.flush()
 
-        # 2. Seed Users (Admin only as required)
+        # 2. Seed Standard RBAC Users
         users_to_seed = [
             ("admin", "admin@apex.auto", "admin123", "Admin"),
+            ("engineer", "engineer@apex.auto", "engineer123", "Engineer"),
+            ("operator", "operator@apex.auto", "operator123", "Operator"),
+            ("viewer", "viewer@apex.auto", "viewer123", "Viewer"),
         ]
         for uname, email, pwd, role in users_to_seed:
             from sqlalchemy import func
@@ -83,12 +89,6 @@ def init_db_and_seed():
                     role=role
                 )
                 db.add(u)
-            else:
-                existing.role = "Admin"
-        
-        # Ensure any existing user has Admin role
-        for usr in db.query(User).all():
-            usr.role = "Admin"
         db.commit()
 
         # 3. Model Initialization (Check if active model exists or load baseline)
@@ -121,7 +121,7 @@ def init_db_and_seed():
                         thresholds={"warn_threshold": 0.45, "critical_threshold": 0.70},
                         metrics={"model_type": "IsolationForest", "status": "active"},
                         artifact_path=artifact_file,
-                        created_at=datetime.utcnow()
+                        created_at=get_utc_now()
                     )
                     db.add(base_model)
                     db.commit()
